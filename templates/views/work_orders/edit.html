@@ -1,0 +1,216 @@
+{% extends 'base.html' %}
+{% block title %}Editar Orden {{ order.number }}{% endblock %}
+{% block body %}
+<div class="d-flex align-items-center mb-4 gap-2">
+    <a href="{{ url_for('work_orders.detail', order_id=order.id) }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left"></i>
+    </a>
+    <h4 class="mb-0">Editar Orden <code>{{ order.number }}</code></h4>
+</div>
+
+<form method="POST" action="{{ url_for('work_orders.edit', order_id=order.id) }}" id="orderForm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="parts_json" id="partsJson" value="{{ order.parts | tojson }}">
+
+    <div class="row g-4">
+        <div class="col-lg-5">
+            <div class="card shadow-sm border-0 mb-3">
+                <div class="card-header bg-dark text-white">Datos del Vehículo</div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <label class="form-label">Marca <span class="text-danger">*</span></label>
+                            <input type="text" name="vehicle_brand" class="form-control" required
+                                   value="{{ order.vehicle_brand }}">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Modelo <span class="text-danger">*</span></label>
+                            <input type="text" name="vehicle_model" class="form-control" required
+                                   value="{{ order.vehicle_model }}">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Placa <span class="text-danger">*</span></label>
+                            <input type="text" name="vehicle_plate" class="form-control" required
+                                   value="{{ order.vehicle_plate }}" style="text-transform:uppercase;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0 mb-3">
+                <div class="card-header bg-dark text-white">Cliente y Estado</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Cliente</label>
+                        <select name="client_id" class="form-select" required>
+                            {% for c in clients %}
+                            <option value="{{ c.id }}" {{ 'selected' if c.id == order.client_id }}>
+                                {{ c.full_name }} — {{ c.email }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label">Estado</label>
+                        <select name="status" class="form-select">
+                            <option value="abierta" {{ 'selected' if order.status == 'abierta' }}>Abierta</option>
+                            <option value="en_proceso" {{ 'selected' if order.status == 'en_proceso' }}>En Proceso</option>
+                        </select>
+                        <small class="text-muted">Para cerrar la orden usa el botón en el detalle.</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-dark text-white">Notas</div>
+                <div class="card-body">
+                    <textarea name="notes" class="form-control" rows="3">{{ order.notes or '' }}</textarea>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-7">
+            <div class="card shadow-sm border-0 mb-3">
+                <div class="card-header bg-dark text-white">Repuestos</div>
+                <div class="card-body">
+                    <div class="row g-2 mb-3 align-items-end">
+                        <div class="col-5">
+                            <label class="form-label small">Repuesto</label>
+                            <select id="partSelector" class="form-select form-select-sm">
+                                <option value="">Seleccionar...</option>
+                                {% for p in parts %}
+                                <option value="{{ p.id }}"
+                                        data-name="{{ p.name }}" data-code="{{ p.code }}"
+                                        data-price="{{ p.precio_venta }}" data-stock="{{ p.stock_actual }}">
+                                    {{ p.code }} — {{ p.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-2">
+                            <label class="form-label small">Cant.</label>
+                            <input type="number" id="partQty" class="form-control form-control-sm" min="1" value="1">
+                        </div>
+                        <div class="col-3">
+                            <label class="form-label small">P. Unit. ($)</label>
+                            <input type="number" id="partPrice" class="form-control form-control-sm" min="0" step="0.01">
+                        </div>
+                        <div class="col-2">
+                            <button type="button" class="btn btn-outline-dark btn-sm w-100" onclick="addPart()">
+                                <i class="bi bi-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Repuesto</th>
+                                    <th class="text-center">Cant.</th>
+                                    <th class="text-end">P. Unit.</th>
+                                    <th class="text-end">Subtotal</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="partsBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <div class="row align-items-center g-3">
+                        <div class="col-sm-6">
+                            <label class="form-label">Mano de Obra ($)</label>
+                            <input type="number" name="labor_cost" id="laborCost" class="form-control"
+                                   min="0" step="0.01" value="{{ '%.2f' | format(order.labor_cost) }}"
+                                   oninput="updateTotal()">
+                        </div>
+                        <div class="col-sm-6 text-end">
+                            <p class="text-muted small mb-1">Subtotal: <span id="subtotalDisplay">$0.00</span></p>
+                            <p class="text-muted small mb-1">M. de obra: <span id="laborDisplay">$0.00</span></p>
+                            <h5 class="mb-0">TOTAL: <strong id="totalDisplay">$0.00</strong></h5>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2 mt-3">
+        <button type="submit" class="btn btn-dark px-5">
+            <i class="bi bi-save me-1"></i>Guardar Cambios
+        </button>
+        <a href="{{ url_for('work_orders.detail', order_id=order.id) }}" class="btn btn-outline-secondary">Cancelar</a>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let partsData = {{ order.parts | tojson }};
+
+document.getElementById('partSelector').addEventListener('change', function() {
+    const opt = this.options[this.selectedIndex];
+    if (opt.value) {
+        document.getElementById('partPrice').value = parseFloat(opt.dataset.price).toFixed(2);
+    }
+});
+
+function addPart() {
+    const sel = document.getElementById('partSelector');
+    const opt = sel.options[sel.selectedIndex];
+    if (!opt.value) return;
+    const qty = parseInt(document.getElementById('partQty').value) || 0;
+    const price = parseFloat(document.getElementById('partPrice').value) || 0;
+    if (qty <= 0) return;
+    const existing = partsData.findIndex(p => p.spare_part_id === opt.value);
+    if (existing >= 0) {
+        partsData[existing].quantity += qty;
+        partsData[existing].subtotal = partsData[existing].quantity * partsData[existing].unit_price;
+    } else {
+        partsData.push({
+            spare_part_id: opt.value,
+            spare_part_name: `${opt.dataset.code} — ${opt.dataset.name}`,
+            quantity: qty, unit_price: price, subtotal: qty * price
+        });
+    }
+    renderParts();
+    sel.value = '';
+}
+
+function removePart(idx) { partsData.splice(idx, 1); renderParts(); }
+
+function renderParts() {
+    document.getElementById('partsJson').value = JSON.stringify(partsData);
+    const tbody = document.getElementById('partsBody');
+    if (!partsData.length) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted small py-2">Sin repuestos</td></tr>';
+        updateTotal(); return;
+    }
+    tbody.innerHTML = partsData.map((p, i) => `
+        <tr>
+            <td class="small">${p.spare_part_name}</td>
+            <td class="text-center">${p.quantity}</td>
+            <td class="text-end">$${parseFloat(p.unit_price).toFixed(2)}</td>
+            <td class="text-end fw-bold">$${parseFloat(p.subtotal).toFixed(2)}</td>
+            <td class="text-center">
+                <button type="button" class="btn btn-sm btn-outline-danger py-0 px-1" onclick="removePart(${i})">
+                    <i class="bi bi-x"></i></button></td>
+        </tr>`).join('');
+    updateTotal();
+}
+
+function updateTotal() {
+    const sub = partsData.reduce((s, p) => s + parseFloat(p.subtotal), 0);
+    const labor = parseFloat(document.getElementById('laborCost').value) || 0;
+    document.getElementById('subtotalDisplay').textContent = '$' + sub.toFixed(2);
+    document.getElementById('laborDisplay').textContent = '$' + labor.toFixed(2);
+    document.getElementById('totalDisplay').textContent = '$' + (sub + labor).toFixed(2);
+}
+
+renderParts();
+updateTotal();
+</script>
+{% endblock %}

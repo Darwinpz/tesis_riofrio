@@ -1,0 +1,171 @@
+{% extends 'base.html' %}
+{% block title %}Detalle Repuesto{% endblock %}
+{% block body %}
+<div class="d-flex align-items-center mb-4 gap-2">
+    <a href="{{ url_for('spare_parts.index') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left"></i>
+    </a>
+    <h4 class="mb-0">{{ part.name }}</h4>
+    <code class="text-muted">{{ part.code }}</code>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-4">
+        <!-- Imagen -->
+        <div class="card shadow-sm border-0 mb-3">
+            <div class="card-body text-center">
+                {% if part.imagen %}
+                    <img src="/{{ part.imagen }}" alt="{{ part.name }}"
+                         class="img-fluid rounded" style="max-height:200px;">
+                {% else %}
+                    <div class="bg-light rounded d-flex align-items-center justify-content-center"
+                         style="height:140px;">
+                        <i class="bi bi-gear text-secondary" style="font-size:3rem;"></i>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Stock -->
+        <div class="card shadow-sm border-0 mb-3">
+            <div class="card-header bg-dark text-white">Control de Stock</div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col">
+                        <p class="text-muted small mb-0">Actual</p>
+                        <h4 class="mb-0 {% if part.stock_actual <= part.stock_minimo %}text-danger{% else %}text-success{% endif %}">
+                            {{ part.stock_actual }}
+                        </h4>
+                    </div>
+                    <div class="col border-start border-end">
+                        <p class="text-muted small mb-0">Mínimo</p>
+                        <h4 class="mb-0">{{ part.stock_minimo }}</h4>
+                    </div>
+                    <div class="col">
+                        <p class="text-muted small mb-0">Máximo</p>
+                        <h4 class="mb-0">{{ part.stock_maximo }}</h4>
+                    </div>
+                </div>
+                {% if part.stock_actual <= part.stock_minimo %}
+                <div class="alert alert-danger mt-3 mb-0 py-2 small">
+                    <i class="bi bi-exclamation-triangle me-1"></i>Stock por debajo del mínimo
+                </div>
+                {% endif %}
+            </div>
+            {% if current_user.role in ('admin', 'operator') %}
+            <div class="card-footer bg-white d-flex gap-2">
+                <a href="{{ url_for('stock.entry') }}?part_id={{ part.id }}"
+                   class="btn btn-sm btn-outline-success flex-fill">
+                    <i class="bi bi-plus me-1"></i>Entrada
+                </a>
+                <a href="{{ url_for('stock.exit') }}?part_id={{ part.id }}"
+                   class="btn btn-sm btn-outline-danger flex-fill">
+                    <i class="bi bi-dash me-1"></i>Salida
+                </a>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Acciones -->
+        {% if current_user.role in ('admin', 'operator') %}
+        <div class="d-grid gap-2">
+            <a href="{{ url_for('spare_parts.edit', part_id=part.id) }}" class="btn btn-dark">
+                <i class="bi bi-pencil me-1"></i>Editar Repuesto
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="col-lg-8">
+        <!-- Información general -->
+        <div class="card shadow-sm border-0 mb-3">
+            <div class="card-header bg-dark text-white">Información General</div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-sm-6">
+                        <label class="text-muted small">Marca del vehículo</label>
+                        <p class="mb-0">{{ brands_map.get(part.brand_id, '—') if part.brand_id else '—' }}</p>
+                    </div>
+                    <div class="col-sm-6">
+                        <label class="text-muted small">Modelo del vehículo</label>
+                        <p class="mb-0">{{ vm_map.get(part.vehicle_model_id, '—') if part.vehicle_model_id else '—' }}</p>
+                    </div>
+                    <div class="col-sm-6">
+                        <label class="text-muted small">Descripción</label>
+                        <p class="mb-0">{{ part.description or '—' }}</p>
+                    </div>
+                    <div class="col-sm-6">
+                        <label class="text-muted small">Ubicación</label>
+                        <p class="mb-0">{{ part.ubicacion or '—' }}</p>
+                    </div>
+                    <div class="col-sm-6">
+                        <label class="text-muted small">Categoría</label>
+                        <p class="mb-0">{{ categories.get(part.category_id, '—') }}</p>
+                    </div>
+                    <div class="col-sm-6">
+                        <label class="text-muted small">Proveedor</label>
+                        <p class="mb-0">{{ suppliers.get(part.supplier_id, '—') }}</p>
+                    </div>
+                    <div class="col-sm-6">
+                        <label class="text-muted small">Precio de Venta</label>
+                        <p class="mb-0 fw-bold">${{ "%.2f" | format(part.precio_venta) }}</p>
+                    </div>
+                    {% if current_user.role == 'admin' %}
+                    <div class="col-sm-6">
+                        <label class="text-muted small">Precio de Compra</label>
+                        <p class="mb-0 text-muted">${{ "%.2f" | format(part.precio_compra) }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Últimos movimientos -->
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                <span>Últimos Movimientos</span>
+                <a href="{{ url_for('stock.index') }}?spare_part_id={{ part.id }}"
+                   class="btn btn-sm btn-outline-light">Ver todos</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Tipo</th>
+                                <th>Cantidad</th>
+                                <th>Motivo</th>
+                                <th>Nota</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for m in movements %}
+                            <tr>
+                                <td class="small text-muted">
+                                    {{ m.created_at.strftime('%d/%m/%Y %H:%M') if m.created_at else '—' }}
+                                </td>
+                                <td>
+                                    {% if m.movement_type == 'entrada' %}
+                                        <span class="badge bg-success-subtle text-success">Entrada</span>
+                                    {% else %}
+                                        <span class="badge bg-danger-subtle text-danger">Salida</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ m.quantity }}</td>
+                                <td class="text-muted small">{{ m.motive | replace('_', ' ') | title }}</td>
+                                <td class="text-muted small">{{ m.note or '—' }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-3">Sin movimientos registrados</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

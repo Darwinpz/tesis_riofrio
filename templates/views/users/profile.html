@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+{% block title %}Mi Perfil{% endblock %}
+{% block body %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <h3 class="mb-4"><i class="bi bi-person-circle me-2"></i>Mi Perfil</h3>
+
+        <div class="row g-4">
+            <!-- Foto de perfil -->
+            <div class="col-md-4 text-center">
+                <div class="card shadow-sm">
+                    <div class="card-body py-4">
+                        {% if current_user.photo_path %}
+                            <img src="/{{ current_user.photo_path }}" alt="Foto de perfil"
+                                 class="rounded-circle img-fluid mb-3"
+                                 style="width:130px;height:130px;object-fit:cover;">
+                        {% else %}
+                            <div class="bg-secondary rounded-circle d-inline-flex align-items-center justify-content-center mb-3"
+                                 style="width:130px;height:130px;">
+                                <i class="bi bi-person text-white" style="font-size:4rem;"></i>
+                            </div>
+                        {% endif %}
+                        <p class="fw-bold mb-0">{{ current_user.first_name }} {{ current_user.last_name }}</p>
+                        <span class="badge mt-1
+                            {% if current_user.role == 'admin' %}bg-danger
+                            {% elif current_user.role == 'operator' %}bg-warning text-dark
+                            {% else %}bg-info text-dark{% endif %}">
+                            {{ current_user.role | capitalize }}
+                        </span>
+                    </div>
+                    <div class="card-footer bg-white">
+                        <form method="POST" action="{{ url_for('users.profile_photo') }}"
+                              enctype="multipart/form-data">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <p class="small text-muted mb-1">Cambiar foto de perfil</p>
+                            <input type="file" name="photo" accept="image/*" class="form-control form-control-sm mb-2" required>
+                            <button type="submit" class="btn btn-sm btn-outline-primary w-100">
+                                <i class="bi bi-upload me-1"></i>Subir foto
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Datos personales -->
+            <div class="col-md-8">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-dark text-white">
+                        <i class="bi bi-pencil-square me-1"></i>Datos Personales
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" action="{{ url_for('users.profile_edit') }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <div class="mb-3">
+                                <label class="form-label">Cédula / Identificación</label>
+                                <input type="text" class="form-control bg-light" value="{{ current_user.identification }}" disabled>
+                            </div>
+                            <div class="row g-2 mb-3">
+                                <div class="col">
+                                    <label class="form-label">Nombre <span class="text-danger">*</span></label>
+                                    <input type="text" name="first_name" class="form-control"
+                                           value="{{ current_user.first_name }}" required>
+                                </div>
+                                <div class="col">
+                                    <label class="form-label">Apellido <span class="text-danger">*</span></label>
+                                    <input type="text" name="last_name" class="form-control"
+                                           value="{{ current_user.last_name }}" required>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Correo electrónico</label>
+                                <input type="email" class="form-control bg-light" value="{{ current_user.email }}" disabled>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Teléfono</label>
+                                <input type="text" name="phone" class="form-control"
+                                       value="{{ current_user.phone or '' }}" placeholder="Ej: 0999123456">
+                            </div>
+                            <button type="submit" class="btn btn-dark">
+                                <i class="bi bi-save me-1"></i>Guardar cambios
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

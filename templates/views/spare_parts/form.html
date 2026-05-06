@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Nuevo Repuesto' if action == 'create' else 'Editar Repuesto' }}{% endblock %}
+{% block body %}
+<div class="d-flex align-items-center mb-4 gap-2">
+    <a href="{{ url_for('spare_parts.index') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left"></i>
+    </a>
+    <h4 class="mb-0">{{ 'Nuevo Repuesto' if action == 'create' else 'Editar Repuesto' }}</h4>
+</div>
+
+<form method="POST"
+      action="{{ url_for('spare_parts.create') if action == 'create' else url_for('spare_parts.edit', part_id=part.id) }}"
+      enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="row g-4">
+        <!-- Información básica -->
+        <div class="col-lg-8">
+            <div class="card shadow-sm border-0 mb-3">
+                <div class="card-header bg-dark text-white">Información básica</div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Código <span class="text-danger">*</span></label>
+                            <input type="text" name="code" class="form-control" required
+                                   value="{{ part.code if part else '' }}" placeholder="Ej: FIL-001">
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label">Nombre <span class="text-danger">*</span></label>
+                            <input type="text" name="name" class="form-control" required
+                                   value="{{ part.name if part else '' }}" placeholder="Nombre del repuesto">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Marca del vehículo</label>
+                            <select name="brand_id" id="brand_id" class="form-select">
+                                <option value="">Sin marca</option>
+                                {% for brand in brands %}
+                                <option value="{{ brand.id }}"
+                                    {% if part and part.brand_id == brand.id %}selected{% endif %}>
+                                    {{ brand.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Modelo del vehículo</label>
+                            <select name="vehicle_model_id" id="vehicle_model_id" class="form-select">
+                                <option value="">Sin modelo</option>
+                                {% for vm in vehicle_models_list %}
+                                <option value="{{ vm.id }}"
+                                    data-brand="{{ vm.brand_id or '' }}"
+                                    {% if part and part.vehicle_model_id == vm.id %}selected{% endif %}>
+                                    {{ vm.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Descripción</label>
+                            <textarea name="description" class="form-control" rows="2">{{ part.description if part and part.description else '' }}</textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Categoría</label>
+                            <select name="category_id" class="form-select">
+                                <option value="">Sin categoría</option>
+                                {% for cat in categories %}
+                                <option value="{{ cat.id }}"
+                                    {% if part and part.category_id == cat.id %}selected{% endif %}>
+                                    {{ cat.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Proveedor</label>
+                            <select name="supplier_id" class="form-select">
+                                <option value="">Sin proveedor</option>
+                                {% for sup in suppliers %}
+                                <option value="{{ sup.id }}"
+                                    {% if part and part.supplier_id == sup.id %}selected{% endif %}>
+                                    {{ sup.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Ubicación</label>
+                            <input type="text" name="ubicacion" class="form-control"
+                                   value="{{ part.ubicacion if part and part.ubicacion else '' }}"
+                                   placeholder="Ej: Estante A2">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Imagen del repuesto</label>
+                            {% if part and part.imagen %}
+                                <div class="mb-1">
+                                    <img src="/{{ part.imagen }}" alt="imagen" class="img-thumbnail" style="height:60px;">
+                                    <small class="text-muted ms-1">imagen actual</small>
+                                </div>
+                            {% endif %}
+                            <input type="file" name="imagen" accept="image/*" class="form-control form-control-sm">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stock y precios -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm border-0 mb-3">
+                <div class="card-header bg-dark text-white">Control de Stock</div>
+                <div class="card-body">
+                    {% if action == 'create' %}
+                    <div class="mb-3">
+                        <label class="form-label">Stock inicial</label>
+                        <input type="number" name="stock_actual" class="form-control" min="0" value="0">
+                    </div>
+                    {% endif %}
+                    <div class="mb-3">
+                        <label class="form-label">Stock Mínimo</label>
+                        <input type="number" name="stock_minimo" class="form-control" min="0"
+                               value="{{ part.stock_minimo if part else '0' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Stock Máximo</label>
+                        <input type="number" name="stock_maximo" class="form-control" min="0"
+                               value="{{ part.stock_maximo if part else '0' }}">
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-dark text-white">Precios</div>
+                <div class="card-body">
+                    {% if current_user.role == 'admin' %}
+                    <div class="mb-3">
+                        <label class="form-label">Precio de Compra ($)</label>
+                        <input type="number" name="precio_compra" class="form-control" min="0" step="0.01"
+                               value="{{ '%.2f' | format(part.precio_compra) if part else '0.00' }}">
+                    </div>
+                    {% else %}
+                    <input type="hidden" name="precio_compra" value="{{ '%.2f' | format(part.precio_compra) if part else '0' }}">
+                    {% endif %}
+                    <div class="mb-3">
+                        <label class="form-label">Precio de Venta ($)</label>
+                        <input type="number" name="precio_venta" class="form-control" min="0" step="0.01"
+                               value="{{ '%.2f' | format(part.precio_venta) if part else '0.00' }}">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2 mt-3">
+        <button type="submit" class="btn btn-dark px-4">
+            <i class="bi bi-save me-1"></i>Guardar Repuesto
+        </button>
+        <a href="{{ url_for('spare_parts.index') }}" class="btn btn-outline-secondary">Cancelar</a>
+    </div>
+</form>
+{% endblock %}
+{% block extra_scripts %}
+<script>
+(function () {
+    const brandSel = document.getElementById('brand_id');
+    const modelSel = document.getElementById('vehicle_model_id');
+    const allOptions = Array.from(modelSel.options).slice(1); // skip "Sin modelo"
+
+    function filterModels() {
+        const selectedBrand = brandSel.value;
+        const currentModel = modelSel.value;
+
+        // Remove all non-placeholder options
+        while (modelSel.options.length > 1) modelSel.remove(1);
+
+        allOptions.forEach(opt => {
+            if (!selectedBrand || opt.dataset.brand === selectedBrand || opt.dataset.brand === '') {
+                modelSel.appendChild(opt.cloneNode(true));
+            }
+        });
+
+        // Restore selection if still present
+        modelSel.value = currentModel;
+        if (!modelSel.value) modelSel.value = '';
+    }
+
+    brandSel.addEventListener('change', filterModels);
+    filterModels();
+})();
+</script>
+{% endblock %}

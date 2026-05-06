@@ -1,0 +1,237 @@
+{% extends 'base.html' %}
+{% block title %}Nueva Orden de Trabajo{% endblock %}
+{% block body %}
+<div class="d-flex align-items-center mb-4 gap-2">
+    <a href="{{ url_for('work_orders.index') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left"></i>
+    </a>
+    <h4 class="mb-0">Nueva Orden de Trabajo</h4>
+</div>
+
+<form method="POST" action="{{ url_for('work_orders.create') }}" id="orderForm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="parts_json" id="partsJson" value="[]">
+
+    <div class="row g-4">
+        <!-- Datos vehículo y cliente -->
+        <div class="col-lg-5">
+            <div class="card shadow-sm border-0 mb-3">
+                <div class="card-header bg-dark text-white">Datos del Vehículo</div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <label class="form-label">Marca <span class="text-danger">*</span></label>
+                            <input type="text" name="vehicle_brand" class="form-control" required placeholder="Ej: Toyota">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Modelo <span class="text-danger">*</span></label>
+                            <input type="text" name="vehicle_model" class="form-control" required placeholder="Ej: Corolla">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Placa <span class="text-danger">*</span></label>
+                            <input type="text" name="vehicle_plate" class="form-control" required
+                                   placeholder="Ej: ABC-1234" style="text-transform:uppercase;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0 mb-3">
+                <div class="card-header bg-dark text-white">Cliente</div>
+                <div class="card-body">
+                    <select name="client_id" class="form-select" required>
+                        <option value="">Seleccionar cliente...</option>
+                        {% for c in clients %}
+                        <option value="{{ c.id }}">{{ c.full_name }} — {{ c.email }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-dark text-white">Notas</div>
+                <div class="card-body">
+                    <textarea name="notes" class="form-control" rows="3"
+                              placeholder="Observaciones sobre el trabajo..."></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Repuestos -->
+        <div class="col-lg-7">
+            <div class="card shadow-sm border-0 mb-3">
+                <div class="card-header bg-dark text-white">Repuestos a Utilizar</div>
+                <div class="card-body">
+                    <!-- Selector de repuesto -->
+                    <div class="row g-2 mb-3 align-items-end">
+                        <div class="col-5">
+                            <label class="form-label small">Repuesto</label>
+                            <select id="partSelector" class="form-select form-select-sm">
+                                <option value="">Seleccionar...</option>
+                                {% for p in parts %}
+                                <option value="{{ p.id }}"
+                                        data-name="{{ p.name }}"
+                                        data-code="{{ p.code }}"
+                                        data-price="{{ p.precio_venta }}"
+                                        data-stock="{{ p.stock_actual }}">
+                                    {{ p.code }} — {{ p.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-2">
+                            <label class="form-label small">Cantidad</label>
+                            <input type="number" id="partQty" class="form-control form-control-sm" min="1" value="1">
+                        </div>
+                        <div class="col-3">
+                            <label class="form-label small">Precio Unit. ($)</label>
+                            <input type="number" id="partPrice" class="form-control form-control-sm"
+                                   min="0" step="0.01" placeholder="0.00">
+                        </div>
+                        <div class="col-2">
+                            <button type="button" class="btn btn-outline-dark btn-sm w-100" onclick="addPart()">
+                                <i class="bi bi-plus"></i> Agregar
+                            </button>
+                        </div>
+                    </div>
+                    <div id="stockAlert" class="alert alert-warning py-1 small d-none">
+                        <i class="bi bi-exclamation-triangle me-1"></i>
+                        Stock disponible: <span id="stockAvail">—</span>
+                    </div>
+
+                    <!-- Tabla de repuestos -->
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered mb-0" id="partsTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Repuesto</th>
+                                    <th class="text-center">Cant.</th>
+                                    <th class="text-end">P. Unit.</th>
+                                    <th class="text-end">Subtotal</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="partsBody">
+                                <tr id="emptyRow">
+                                    <td colspan="5" class="text-center text-muted small py-2">
+                                        Aún no hay repuestos agregados
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Totales -->
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <div class="row align-items-center g-3">
+                        <div class="col-sm-6">
+                            <label class="form-label">Mano de Obra ($)</label>
+                            <input type="number" name="labor_cost" id="laborCost" class="form-control"
+                                   min="0" step="0.01" value="0.00" oninput="updateTotal()">
+                        </div>
+                        <div class="col-sm-6 text-end">
+                            <p class="text-muted small mb-1">Subtotal repuestos: <span id="subtotalDisplay">$0.00</span></p>
+                            <p class="text-muted small mb-1">Mano de obra: <span id="laborDisplay">$0.00</span></p>
+                            <h5 class="mb-0">TOTAL: <span id="totalDisplay" class="text-dark fw-bold">$0.00</span></h5>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2 mt-3">
+        <button type="submit" class="btn btn-dark px-5">
+            <i class="bi bi-save me-1"></i>Crear Orden de Trabajo
+        </button>
+        <a href="{{ url_for('work_orders.index') }}" class="btn btn-outline-secondary">Cancelar</a>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let partsData = [];
+
+document.getElementById('partSelector').addEventListener('change', function() {
+    const opt = this.options[this.selectedIndex];
+    if (opt.value) {
+        document.getElementById('partPrice').value = parseFloat(opt.dataset.price).toFixed(2);
+        const stock = parseInt(opt.dataset.stock);
+        document.getElementById('stockAvail').textContent = stock;
+        document.getElementById('stockAlert').classList.remove('d-none');
+    } else {
+        document.getElementById('stockAlert').classList.add('d-none');
+    }
+});
+
+function addPart() {
+    const sel = document.getElementById('partSelector');
+    const opt = sel.options[sel.selectedIndex];
+    if (!opt.value) { alert('Selecciona un repuesto'); return; }
+    const qty = parseInt(document.getElementById('partQty').value) || 0;
+    const price = parseFloat(document.getElementById('partPrice').value) || 0;
+    if (qty <= 0) { alert('La cantidad debe ser mayor a cero'); return; }
+
+    const existing = partsData.findIndex(p => p.spare_part_id === opt.value);
+    if (existing >= 0) {
+        partsData[existing].quantity += qty;
+        partsData[existing].subtotal = partsData[existing].quantity * partsData[existing].unit_price;
+    } else {
+        partsData.push({
+            spare_part_id: opt.value,
+            spare_part_name: `${opt.dataset.code} — ${opt.dataset.name}`,
+            quantity: qty,
+            unit_price: price,
+            subtotal: qty * price
+        });
+    }
+    renderParts();
+    sel.value = '';
+    document.getElementById('partQty').value = 1;
+    document.getElementById('partPrice').value = '';
+    document.getElementById('stockAlert').classList.add('d-none');
+}
+
+function removePart(idx) {
+    partsData.splice(idx, 1);
+    renderParts();
+}
+
+function renderParts() {
+    const tbody = document.getElementById('partsBody');
+    document.getElementById('partsJson').value = JSON.stringify(partsData);
+    if (partsData.length === 0) {
+        tbody.innerHTML = '<tr id="emptyRow"><td colspan="5" class="text-center text-muted small py-2">Aún no hay repuestos agregados</td></tr>';
+        updateTotal();
+        return;
+    }
+    tbody.innerHTML = partsData.map((p, i) => `
+        <tr>
+            <td class="small">${p.spare_part_name}</td>
+            <td class="text-center">${p.quantity}</td>
+            <td class="text-end">$${p.unit_price.toFixed(2)}</td>
+            <td class="text-end fw-bold">$${p.subtotal.toFixed(2)}</td>
+            <td class="text-center">
+                <button type="button" class="btn btn-xs btn-outline-danger btn-sm py-0 px-1"
+                        onclick="removePart(${i})">
+                    <i class="bi bi-x"></i>
+                </button>
+            </td>
+        </tr>`).join('');
+    updateTotal();
+}
+
+function updateTotal() {
+    const subtotal = partsData.reduce((s, p) => s + p.subtotal, 0);
+    const labor = parseFloat(document.getElementById('laborCost').value) || 0;
+    const total = subtotal + labor;
+    document.getElementById('subtotalDisplay').textContent = '$' + subtotal.toFixed(2);
+    document.getElementById('laborDisplay').textContent = '$' + labor.toFixed(2);
+    document.getElementById('totalDisplay').textContent = '$' + total.toFixed(2);
+}
+</script>
+{% endblock %}

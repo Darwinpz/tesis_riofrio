@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+
+{% block body %}
+
+<!-- Hero Section -->
+<section class="bg-light py-5">
+    <div class="container text-center">
+        <h1 class="display-5 fw-bold">Bienvenidos a Mechita</h1>
+        <p class="lead mt-3">
+            Tu sistema inteligente para la gestión de inventario y control de repuestos.
+            Optimiza tus recursos, evita desabastecimientos y lleva un registro preciso de cada pieza.
+        </p>
+        <a href="#aboutProgram" class="btn btn-primary btn-lg mt-3">
+            Conoce más
+        </a>
+    </div>
+</section>
+
+<!-- About Program / Sobre Mechita -->
+<section class="py-5" id="aboutProgram">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h2 class="fw-bold">¿Por qué elegir Mechita para tu inventario?</h2>
+                <p class="mt-3">
+                    Mechita nace para simplificar la administración de repuestos en talleres, concesionarios y almacenes.
+                    Olvídate de las hojas de cálculo desactualizadas y los errores humanos. Nuestra plataforma te brinda
+                    control total, desde la entrada de mercancía hasta la salida de cada componente.
+                </p>
+                <p>
+                    Con un diseño intuitivo y potentes herramientas de análisis, podrás tomar decisiones basadas en datos reales,
+                    reducir costos operativos y mejorar la atención a tus clientes.
+                </p>
+            </div>
+            <div class="col-md-6">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title">Características destacadas</h5>
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item">✅ Control de stock en tiempo real</li>
+                            <li class="list-group-item">📦 Categorización y búsqueda de repuestos por código</li>
+                            <li class="list-group-item">🔔 Alertas automáticas de mínimo inventario</li>
+                            <li class="list-group-item">📊 Reportes de rotación y valorización de stock</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock %}

@@ -1,0 +1,215 @@
+{% extends 'base.html' %}
+{% block title %}Repuestos{% endblock %}
+{% block body %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3 class="mb-0"><i class="bi bi-gear me-2"></i>Repuestos</h3>
+    {% if current_user.role in ('admin', 'operator') %}
+    <a href="{{ url_for('spare_parts.create') }}" class="btn btn-dark">
+        <i class="bi bi-plus-lg me-1"></i>Nuevo Repuesto
+    </a>
+    {% endif %}
+</div>
+
+<!-- Filtros -->
+<form method="GET" class="card card-body shadow-sm border-0 mb-4 py-3">
+    <div class="row g-2">
+        <div class="col-sm-3">
+            <input type="text" name="search" class="form-control form-control-sm"
+                   placeholder="Buscar por código o nombre..."
+                   value="{{ search }}">
+        </div>
+        <div class="col-sm-2">
+            <select name="category_id" class="form-select form-select-sm">
+                <option value="">Todas las categorías</option>
+                {% for cat in categories %}
+                <option value="{{ cat.id }}" {{ 'selected' if category_id == cat.id }}>{{ cat.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-sm-2">
+            <select name="brand_id" id="filter_brand" class="form-select form-select-sm">
+                <option value="">Todas las marcas</option>
+                {% for brand in brands %}
+                <option value="{{ brand.id }}" {{ 'selected' if brand_id == brand.id }}>{{ brand.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-sm-2">
+            <select name="vehicle_model_id" id="filter_model" class="form-select form-select-sm">
+                <option value="">Todos los modelos</option>
+                {% for vm in vehicle_models_list %}
+                <option value="{{ vm.id }}"
+                    data-brand="{{ vm.brand_id or '' }}"
+                    {{ 'selected' if vehicle_model_id == vm.id }}>{{ vm.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-sm-3 d-flex gap-1">
+            <button type="submit" class="btn btn-dark btn-sm flex-fill" title="Filtrar">
+                <i class="bi bi-search me-1"></i>Filtrar
+            </button>
+            <a href="{{ url_for('spare_parts.index') }}" class="btn btn-outline-secondary btn-sm" title="Limpiar">
+                <i class="bi bi-x"></i>
+            </a>
+        </div>
+    </div>
+</form>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Código</th>
+                        <th>Nombre</th>
+                        <th>Marca / Modelo</th>
+                        <th>Categoría</th>
+                        <th class="text-center">Stock Actual</th>
+                        <th class="text-center">Stock Mín.</th>
+                        <th class="text-end">Precio Venta</th>
+                        <th class="text-center">Estado</th>
+                        <th class="text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for part in parts %}
+                    <tr class="{{ 'table-warning' if part.stock_actual <= part.stock_minimo else '' }}">
+                        <td><code>{{ part.code }}</code></td>
+                        <td class="fw-medium">{{ part.name }}</td>
+                        <td class="text-muted small">
+                            {% if part.brand_id or part.vehicle_model_id %}
+                                {% if part.brand_id %}
+                                <span class="badge bg-light text-dark border">{{ brands_map.get(part.brand_id, part.brand_id) }}</span>
+                                {% endif %}
+                                {% if part.vehicle_model_id %}
+                                <span class="badge bg-light text-dark border ms-1">{{ vm_map.get(part.vehicle_model_id, part.vehicle_model_id) }}</span>
+                                {% endif %}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+                        <td class="text-muted small">{{ categories | selectattr('id', 'equalto', part.category_id) | map(attribute='name') | first | default('—') }}</td>
+                        <td class="text-center">
+                            {% if part.stock_actual <= part.stock_minimo %}
+                                <span class="badge bg-danger">{{ part.stock_actual }}</span>
+                            {% else %}
+                                <span class="badge bg-success">{{ part.stock_actual }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center text-muted">{{ part.stock_minimo }}</td>
+                        <td class="text-end">${{ "%.2f" | format(part.precio_venta) }}</td>
+                        <td class="text-center">
+                            {% if part.is_active %}
+                                <span class="badge bg-success-subtle text-success">Activo</span>
+                            {% else %}
+                                <span class="badge bg-secondary-subtle text-secondary">Inactivo</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <a href="{{ url_for('spare_parts.detail', part_id=part.id) }}"
+                               class="btn btn-sm btn-outline-secondary me-1" title="Ver detalle">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            {% if current_user.role in ('admin', 'operator') %}
+                            <a href="{{ url_for('spare_parts.edit', part_id=part.id) }}"
+                               class="btn btn-sm btn-outline-primary me-1" title="Editar">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            {% endif %}
+                            {% if current_user.role == 'admin' %}
+                            <button type="button" class="btn btn-sm btn-outline-danger"
+                                    data-bs-toggle="modal" data-bs-target="#delPart{{ loop.index }}"
+                                    title="Eliminar">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                            <!-- Modal eliminar -->
+                            <div class="modal fade" id="delPart{{ loop.index }}" tabindex="-1">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">Eliminar Repuesto</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            ¿Eliminar <strong>{{ part.name }}</strong> ({{ part.code }})?
+                                            Si tiene movimientos de stock no podrá eliminarse.
+                                            <p class="mt-2 mb-0 text-muted small">
+                                                Alternativa: puedes <strong>desactivarlo</strong> para ocultarlo sin borrar su historial.
+                                            </p>
+                                        </div>
+                                        <div class="modal-footer flex-wrap gap-1">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                            <form method="POST" action="{{ url_for('spare_parts.deactivate', part_id=part.id) }}" class="d-inline">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <button type="submit" class="btn btn-warning">
+                                                    <i class="bi bi-eye-slash me-1"></i>Desactivar
+                                                </button>
+                                            </form>
+                                            <form method="POST" action="{{ url_for('spare_parts.delete', part_id=part.id) }}" class="d-inline">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <button type="submit" class="btn btn-danger">
+                                                    <i class="bi bi-trash me-1"></i>Eliminar
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="9" class="text-center text-muted py-4">No se encontraron repuestos</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <!-- Paginación -->
+    {% if total_pages > 1 %}
+    <div class="card-footer bg-white d-flex justify-content-between align-items-center">
+        <small class="text-muted">{{ total }} repuestos</small>
+        <nav>
+            <ul class="pagination pagination-sm mb-0">
+                {% for p in range(1, total_pages + 1) %}
+                <li class="page-item {{ 'active' if p == page }}">
+                    <a class="page-link"
+                       href="?page={{ p }}&search={{ search }}&category_id={{ category_id }}&brand_id={{ brand_id }}&vehicle_model_id={{ vehicle_model_id }}">
+                        {{ p }}
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+{% block extra_scripts %}
+<script>
+(function () {
+    const brandSel = document.getElementById('filter_brand');
+    const modelSel = document.getElementById('filter_model');
+    const allOptions = Array.from(modelSel.options).slice(1);
+
+    function filterModels() {
+        const selectedBrand = brandSel.value;
+        const currentModel = modelSel.value;
+        while (modelSel.options.length > 1) modelSel.remove(1);
+        allOptions.forEach(opt => {
+            if (!selectedBrand || opt.dataset.brand === selectedBrand || opt.dataset.brand === '') {
+                modelSel.appendChild(opt.cloneNode(true));
+            }
+        });
+        modelSel.value = currentModel;
+        if (!modelSel.value) modelSel.value = '';
+    }
+
+    brandSel.addEventListener('change', filterModels);
+    filterModels();
+})();
+</script>
+{% endblock %}

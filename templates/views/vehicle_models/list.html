@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% block title %}Modelos{% endblock %}
+{% block body %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3 class="mb-0"><i class="bi bi-car-front me-2"></i>Modelos de Vehículo</h3>
+    {% if current_user.role == 'admin' %}
+    <a href="{{ url_for('vehicle_models.create') }}" class="btn btn-dark">
+        <i class="bi bi-plus-lg me-1"></i>Nuevo Modelo
+    </a>
+    {% endif %}
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Marca</th>
+                        <th>Descripción</th>
+                        {% if current_user.role == 'admin' %}
+                        <th class="text-center">Acciones</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for vm in vehicle_models %}
+                    <tr>
+                        <td class="fw-medium">{{ vm.name }}</td>
+                        <td class="text-muted">{{ brands_map.get(vm.brand_id, '—') }}</td>
+                        <td class="text-muted">{{ vm.description or '—' }}</td>
+                        {% if current_user.role == 'admin' %}
+                        <td class="text-center">
+                            <a href="{{ url_for('vehicle_models.edit', vm_id=vm.id) }}"
+                               class="btn btn-sm btn-outline-primary me-1">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <button type="button" class="btn btn-sm btn-outline-danger"
+                                    data-bs-toggle="modal" data-bs-target="#delVM{{ loop.index }}">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                        <div class="modal fade" id="delVM{{ loop.index }}" tabindex="-1">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">Eliminar Modelo</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        ¿Eliminar el modelo <strong>{{ vm.name }}</strong>?
+                                        No se podrá eliminar si tiene repuestos vinculados.
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                        <form method="POST" action="{{ url_for('vehicle_models.delete', vm_id=vm.id) }}">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="btn btn-danger">Eliminar</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="{{ 4 if current_user.role == 'admin' else 3 }}"
+                            class="text-center text-muted py-4">No hay modelos registrados</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

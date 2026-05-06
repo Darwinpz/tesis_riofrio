@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Nuevo' if action == 'create' else 'Editar' }} Proveedor{% endblock %}
+{% block body %}
+<div class="row justify-content-center">
+    <div class="col-md-7 col-lg-6">
+        <div class="d-flex align-items-center mb-4 gap-2">
+            <a href="{{ url_for('suppliers.index') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left"></i>
+            </a>
+            <h4 class="mb-0">{{ 'Nuevo Proveedor' if action == 'create' else 'Editar Proveedor' }}</h4>
+        </div>
+        <div class="card shadow-sm border-0">
+            <div class="card-body">
+                <form method="POST"
+                      action="{{ url_for('suppliers.create') if action == 'create' else url_for('suppliers.edit', supplier_id=supplier.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="mb-3">
+                        <label class="form-label">Nombre <span class="text-danger">*</span></label>
+                        <input type="text" name="name" class="form-control" required
+                               value="{{ supplier.name if supplier else '' }}" placeholder="Nombre del proveedor">
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col">
+                            <label class="form-label">Persona de contacto</label>
+                            <input type="text" name="contact" class="form-control"
+                                   value="{{ supplier.contact if supplier and supplier.contact else '' }}">
+                        </div>
+                        <div class="col">
+                            <label class="form-label">Teléfono</label>
+                            <input type="text" name="phone" class="form-control"
+                                   value="{{ supplier.phone if supplier and supplier.phone else '' }}">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" name="email" class="form-control"
+                               value="{{ supplier.email if supplier and supplier.email else '' }}">
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label">Dirección</label>
+                        <input type="text" name="address" class="form-control"
+                               value="{{ supplier.address if supplier and supplier.address else '' }}">
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-dark flex-fill">
+                            <i class="bi bi-save me-1"></i>Guardar
+                        </button>
+                        <a href="{{ url_for('suppliers.index') }}" class="btn btn-outline-secondary flex-fill">Cancelar</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

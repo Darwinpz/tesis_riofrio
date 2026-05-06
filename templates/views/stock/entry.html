@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+{% block title %}Registrar Entrada{% endblock %}
+{% block body %}
+<div class="row justify-content-center">
+    <div class="col-md-7 col-lg-6">
+        <div class="d-flex align-items-center mb-4 gap-2">
+            <a href="{{ url_for('stock.index') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left"></i>
+            </a>
+            <h4 class="mb-0"><i class="bi bi-box-arrow-in-down-right text-success me-2"></i>Registrar Entrada de Stock</h4>
+        </div>
+        <div class="card shadow-sm border-0">
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('stock.entry') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="mb-3">
+                        <label class="form-label">Repuesto <span class="text-danger">*</span></label>
+                        <select name="spare_part_id" class="form-select" required id="partSelect">
+                            <option value="">Seleccionar repuesto...</option>
+                            {% for p in parts %}
+                            <option value="{{ p.id }}"
+                                    data-stock="{{ p.stock_actual }}"
+                                    {{ 'selected' if preselect == p.id }}>
+                                {{ p.code }} — {{ p.name }} (stock: {{ p.stock_actual }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div id="stockInfo" class="alert alert-info py-2 small d-none">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Stock actual: <strong id="currentStock">—</strong>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Cantidad <span class="text-danger">*</span></label>
+                        <input type="number" name="quantity" class="form-control" min="1" required
+                               placeholder="Cantidad a ingresar">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Motivo <span class="text-danger">*</span></label>
+                        <select name="motive" class="form-select" required>
+                            <option value="">Seleccionar motivo...</option>
+                            <option value="compra">Compra a proveedor</option>
+                            <option value="devolucion">Devolución</option>
+                            <option value="ajuste">Ajuste de inventario</option>
+                        </select>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label">Nota</label>
+                        <textarea name="note" class="form-control" rows="2"
+                                  placeholder="Observaciones adicionales..."></textarea>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-success flex-fill">
+                            <i class="bi bi-check-lg me-1"></i>Registrar Entrada
+                        </button>
+                        <a href="{{ url_for('stock.index') }}" class="btn btn-outline-secondary flex-fill">Cancelar</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_scripts %}
+<script>
+document.getElementById('partSelect').addEventListener('change', function() {
+    const opt = this.options[this.selectedIndex];
+    const info = document.getElementById('stockInfo');
+    if (opt.value) {
+        document.getElementById('currentStock').textContent = opt.dataset.stock;
+        info.classList.remove('d-none');
+    } else {
+        info.classList.add('d-none');
+    }
+});
+// Pre-select trigger
+const sel = document.getElementById('partSelect');
+if (sel.value) sel.dispatchEvent(new Event('change'));
+</script>
+{% endblock %}

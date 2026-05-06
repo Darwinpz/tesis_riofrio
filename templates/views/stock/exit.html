@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+{% block title %}Registrar Salida{% endblock %}
+{% block body %}
+<div class="row justify-content-center">
+    <div class="col-md-7 col-lg-6">
+        <div class="d-flex align-items-center mb-4 gap-2">
+            <a href="{{ url_for('stock.index') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left"></i>
+            </a>
+            <h4 class="mb-0"><i class="bi bi-box-arrow-up-right text-danger me-2"></i>Registrar Salida de Stock</h4>
+        </div>
+        <div class="card shadow-sm border-0">
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('stock.exit') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="mb-3">
+                        <label class="form-label">Repuesto <span class="text-danger">*</span></label>
+                        <select name="spare_part_id" class="form-select" required id="partSelect">
+                            <option value="">Seleccionar repuesto...</option>
+                            {% for p in parts %}
+                            <option value="{{ p.id }}"
+                                    data-stock="{{ p.stock_actual }}"
+                                    {{ 'selected' if preselect == p.id }}>
+                                {{ p.code }} — {{ p.name }} (stock: {{ p.stock_actual }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div id="stockInfo" class="alert alert-warning py-2 small d-none">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Stock disponible: <strong id="currentStock">—</strong>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Cantidad <span class="text-danger">*</span></label>
+                        <input type="number" name="quantity" class="form-control" min="1" required id="qtyInput"
+                               placeholder="Cantidad a retirar">
+                        <div id="stockWarn" class="text-danger small mt-1 d-none">
+                            La cantidad supera el stock disponible
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Motivo <span class="text-danger">*</span></label>
+                        <select name="motive" class="form-select" required>
+                            <option value="">Seleccionar motivo...</option>
+                            <option value="venta_directa">Venta directa</option>
+                            <option value="ajuste">Ajuste de inventario</option>
+                            <option value="danio">Daño / Pérdida</option>
+                            <option value="orden_trabajo">Orden de trabajo manual</option>
+                        </select>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label">Nota</label>
+                        <textarea name="note" class="form-control" rows="2"
+                                  placeholder="Observaciones adicionales..."></textarea>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-danger flex-fill">
+                            <i class="bi bi-check-lg me-1"></i>Registrar Salida
+                        </button>
+                        <a href="{{ url_for('stock.index') }}" class="btn btn-outline-secondary flex-fill">Cancelar</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_scripts %}
+<script>
+let currentStock = 0;
+document.getElementById('partSelect').addEventListener('change', function() {
+    const opt = this.options[this.selectedIndex];
+    const info = document.getElementById('stockInfo');
+    if (opt.value) {
+        currentStock = parseInt(opt.dataset.stock);
+        document.getElementById('currentStock').textContent = currentStock;
+        info.classList.remove('d-none');
+    } else {
+        info.classList.add('d-none');
+        currentStock = 0;
+    }
+    checkQty();
+});
+document.getElementById('qtyInput').addEventListener('input', checkQty);
+function checkQty() {
+    const qty = parseInt(document.getElementById('qtyInput').value) || 0;
+    document.getElementById('stockWarn').classList.toggle('d-none', qty <= currentStock || !currentStock);
+}
+const sel = document.getElementById('partSelect');
+if (sel.value) sel.dispatchEvent(new Event('change'));
+</script>
+{% endblock %}
