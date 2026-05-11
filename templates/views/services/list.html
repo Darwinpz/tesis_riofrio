@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+{% block title %}Servicios{% endblock %}
+{% block body %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3 class="mb-0"><i class="bi bi-tools me-2"></i>Servicios del Taller</h3>
+    {% if current_user.role == 'admin' %}
+    <a href="{{ url_for('services.create') }}" class="btn btn-dark">
+        <i class="bi bi-plus-lg me-1"></i>Nuevo Servicio
+    </a>
+    {% endif %}
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Descripción</th>
+                        <th class="text-end">Precio</th>
+                        <th class="text-center">Estado</th>
+                        {% if current_user.role == 'admin' %}
+                        <th class="text-center">Acciones</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in services %}
+                    <tr>
+                        <td class="fw-medium">{{ s.name }}</td>
+                        <td class="text-muted small">{{ s.description or '—' }}</td>
+                        <td class="text-end fw-bold">${{ "%.2f" | format(s.price) }}</td>
+                        <td class="text-center">
+                            {% if s.is_active %}
+                            <span class="badge bg-success">Activo</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Inactivo</span>
+                            {% endif %}
+                        </td>
+                        {% if current_user.role == 'admin' %}
+                        <td class="text-center">
+                            <a href="{{ url_for('services.edit', service_id=s.id) }}"
+                               class="btn btn-sm btn-outline-primary me-1">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <button type="button" class="btn btn-sm btn-outline-danger"
+                                    data-bs-toggle="modal" data-bs-target="#delSvc{{ loop.index }}">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                        {% endif %}
+                    </tr>
+                    <!-- Modal eliminar -->
+                    {% if current_user.role == 'admin' %}
+                    <div class="modal fade" id="delSvc{{ loop.index }}" tabindex="-1">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title text-danger">
+                                        <i class="bi bi-exclamation-triangle me-1"></i>Confirmar eliminación
+                                    </h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    ¿Eliminar el servicio <strong>{{ s.name }}</strong>?
+                                    <p class="text-danger small mt-2 mb-0">Esta acción no se puede deshacer.</p>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                    <form method="POST" action="{{ url_for('services.delete', service_id=s.id) }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-danger">
+                                            <i class="bi bi-trash me-1"></i>Eliminar
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-5">
+                            <i class="bi bi-tools fs-2 d-block mb-2 opacity-25"></i>
+                            No hay servicios registrados
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

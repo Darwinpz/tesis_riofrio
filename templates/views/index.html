@@ -11,13 +11,92 @@
             Tu sistema inteligente para la gestión de inventario y control de repuestos.
             Optimiza tus recursos, evita desabastecimientos y lleva un registro preciso de cada pieza.
         </p>
-        <a href="#aboutProgram" class="btn btn-primary btn-lg mt-3">
-            Conoce más
-        </a>
+        <div class="d-flex justify-content-center gap-3 mt-3 flex-wrap">
+            <a href="#aboutProgram" class="btn btn-primary btn-lg">Conoce más</a>
+            <a href="{{ url_for('catalog.index') }}" class="btn btn-outline-dark btn-lg">
+                <i class="bi bi-shop me-1"></i>Ver Catálogo
+            </a>
+        </div>
     </div>
 </section>
 
-<!-- About Program / Sobre Mechita -->
+<!-- Carousel: Repuestos más vendidos -->
+{% if top_sellers %}
+<section class="py-5 bg-white">
+    <div class="container">
+        <h2 class="fw-bold text-center mb-4">
+            <i class="bi bi-star-fill text-warning me-2"></i>Repuestos Más Vendidos
+        </h2>
+
+        <div id="topSellersCarousel" class="carousel slide" data-bs-ride="carousel">
+            <div class="carousel-inner">
+                {% for i in range(0, top_sellers|length, 3) %}
+                <div class="carousel-item {{ 'active' if i == 0 }}">
+                    <div class="row g-4 justify-content-center">
+                        {% for part in top_sellers[i:i+3] %}
+                        <div class="col-md-4">
+                            <div class="card h-100 shadow-sm border-0 text-center">
+                                {% if part.imagen %}
+                                <img src="/{{ part.imagen }}" class="card-img-top"
+                                     style="height:180px;object-fit:cover;" alt="{{ part.name }}">
+                                {% else %}
+                                <div class="card-img-top bg-light d-flex align-items-center justify-content-center"
+                                     style="height:180px;">
+                                    <i class="bi bi-gear text-muted" style="font-size:4rem;opacity:.25;"></i>
+                                </div>
+                                {% endif %}
+                                <div class="card-body">
+                                    <span class="badge bg-dark mb-2">{{ part.code }}</span>
+                                    <h6 class="card-title">{{ part.name }}</h6>
+                                    <p class="fs-5 fw-bold mb-1">${{ "%.2f" | format(part.precio_venta) }}</p>
+                                    <small class="text-muted">
+                                        <i class="bi bi-bag-check me-1"></i>{{ part.total_sold }} vendidos
+                                    </small>
+                                </div>
+                                <div class="card-footer bg-white border-0 pb-3">
+                                    <a href="{{ url_for('catalog.index') }}"
+                                       class="btn btn-outline-dark btn-sm">
+                                        <i class="bi bi-eye me-1"></i>Ver en catálogo
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            {% if top_sellers|length > 3 %}
+            <button class="carousel-control-prev" type="button"
+                    data-bs-target="#topSellersCarousel" data-bs-slide="prev">
+                <span class="carousel-control-prev-icon" style="filter:invert(1);"></span>
+            </button>
+            <button class="carousel-control-next" type="button"
+                    data-bs-target="#topSellersCarousel" data-bs-slide="next">
+                <span class="carousel-control-next-icon" style="filter:invert(1);"></span>
+            </button>
+            <div class="carousel-indicators position-static mt-3">
+                {% for i in range(0, top_sellers|length, 3) %}
+                <button type="button" data-bs-target="#topSellersCarousel"
+                        data-bs-slide-to="{{ loop.index0 }}"
+                        class="{{ 'active' if loop.index0 == 0 }}"
+                        style="background-color:#333; width:12px; height:12px; border-radius:50%;"></button>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="text-center mt-4">
+            <a href="{{ url_for('catalog.index') }}" class="btn btn-dark">
+                <i class="bi bi-grid me-1"></i>Ver todos los repuestos
+            </a>
+        </div>
+    </div>
+</section>
+{% endif %}
+
+<!-- About Program -->
 <section class="py-5" id="aboutProgram">
     <div class="container">
         <div class="row align-items-center">
@@ -42,6 +121,8 @@
                             <li class="list-group-item">📦 Categorización y búsqueda de repuestos por código</li>
                             <li class="list-group-item">🔔 Alertas automáticas de mínimo inventario</li>
                             <li class="list-group-item">📊 Reportes de rotación y valorización de stock</li>
+                            <li class="list-group-item">🔧 Gestión de órdenes de mantenimiento</li>
+                            <li class="list-group-item">🛒 Catálogo público de repuestos y servicios</li>
                         </ul>
                     </div>
                 </div>

@@ -1,10 +1,17 @@
 import json
-from typing import Dict
+import os
+from typing import Dict, List
 from datetime import datetime
+from werkzeug.utils import secure_filename
 from models.workOrderModel import WorkOrderModel
 from repositories.workOrderRepository import WorkOrderRepository
 from repositories.sparePartRepository import SparePartRepository
 from services.stockService import StockService
+
+ALLOWED_PHOTO_EXT = {"png", "jpg", "jpeg", "gif", "webp"}
+
+def _allowed_photo(filename: str) -> bool:
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_PHOTO_EXT
 
 class WorkOrderService:
 
@@ -30,6 +37,14 @@ class WorkOrderService:
             return {"success": False, "message": f"Error al obtener la orden: {e}"}
 
     @staticmethod
+    def get_by_mechanic(mechanic_id: str) -> Dict:
+        try:
+            orders = WorkOrderRepository.find_by_mechanic(mechanic_id)
+            return {"success": True, "orders": orders}
+        except Exception as e:
+            return {"success": False, "message": f"Error al obtener órdenes del mecánico: {e}"}
+
+    @staticmethod
     def get_by_client(client_id: str) -> Dict:
         try:
             orders = WorkOrderRepository.find_by_client(client_id)
@@ -38,7 +53,8 @@ class WorkOrderService:
             return {"success": False, "message": f"Error al obtener órdenes del cliente: {e}"}
 
     @staticmethod
-    def create(data: dict, parts_json: str, operator_id: str) -> Dict:
+    def create(data: dict, parts_json: str, operator_id: str,
+               photo_files=None, upload_folder: str = None) -> Dict:
         client_id = data.get("client_id", "").strip()
         vehicle_brand = data.get("vehicle_brand", "").strip()
         vehicle_model = data.get("vehicle_model", "").strip()
@@ -66,6 +82,15 @@ class WorkOrderService:
         subtotal = sum(float(p.get("subtotal", 0)) for p in parts)
         total = subtotal + labor_cost
 
+        vehicle_photos = []
+        if photo_files and upload_folder:
+            os.makedirs(upload_folder, exist_ok=True)
+            for photo in photo_files:
+                if photo and photo.filename and _allowed_photo(photo.filename):
+                    filename = secure_filename(f"{vehicle_plate}_{photo.filename}")
+                    photo.save(os.path.join(upload_folder, filename))
+                    vehicle_photos.append(f"uploads/ordenes/{filename}")
+
         try:
             number = WorkOrderRepository.get_next_number()
             order = WorkOrderModel(
@@ -77,9 +102,11 @@ class WorkOrderService:
                 parts=parts,
                 labor_cost=labor_cost,
                 total=total,
-                status="abierta",
+                status="ingresado",
                 operator_id=operator_id,
-                notes=data.get("notes", "").strip() or None
+                mechanic_id=data.get("mechanic_id") or None,
+                notes=data.get("notes", "").strip() or None,
+                vehicle_photos=vehicle_photos
             )
             order_id = WorkOrderRepository.create(order)
             return {"success": True, "message": "Orden de trabajo creada exitosamente", "order_id": order_id}
@@ -87,13 +114,14 @@ class WorkOrderService:
             return {"success": False, "message": f"Error al crear la orden: {e}"}
 
     @staticmethod
-    def update(order_id: str, data: dict, parts_json: str) -> Dict:
+    def update(order_id: str, data: dict, parts_json: str,
+               photo_files=None, upload_folder: str = None) -> Dict:
         try:
             order = WorkOrderRepository.find_by_id(order_id)
             if not order:
                 return {"success": False, "message": "Orden no encontrada"}
-            if order.status == "cerrada":
-                return {"success": False, "message": "No se puede editar una orden cerrada"}
+            if order.is_closed:
+                return {"success": False, "message": "No se puede editar una orden finalizada"}
 
             try:
                 parts = json.loads(parts_json) if parts_json else []
@@ -112,16 +140,28 @@ class WorkOrderService:
             if new_status not in WorkOrderModel.VALID_STATUSES:
                 new_status = order.status
 
+            vehicle_photos = list(order.vehicle_photos)
+            if photo_files and upload_folder:
+                os.makedirs(upload_folder, exist_ok=True)
+                plate = data.get("vehicle_plate", order.vehicle_plate).strip().upper()
+                for photo in photo_files:
+                    if photo and photo.filename and _allowed_photo(photo.filename):
+                        filename = secure_filename(f"{plate}_{photo.filename}")
+                        photo.save(os.path.join(upload_folder, filename))
+                        vehicle_photos.append(f"uploads/ordenes/{filename}")
+
             update_data = {
                 "vehicle_brand": data.get("vehicle_brand", order.vehicle_brand).strip(),
                 "vehicle_model": data.get("vehicle_model", order.vehicle_model).strip(),
                 "vehicle_plate": data.get("vehicle_plate", order.vehicle_plate).strip().upper(),
                 "client_id": data.get("client_id", order.client_id),
+                "mechanic_id": data.get("mechanic_id") or None,
                 "parts": parts,
                 "labor_cost": labor_cost,
                 "total": total,
                 "status": new_status,
                 "notes": data.get("notes", "").strip() or None,
+                "vehicle_photos": vehicle_photos,
                 "updated_at": datetime.now()
             }
             WorkOrderRepository.update_by_id(order_id, update_data)
@@ -135,8 +175,8 @@ class WorkOrderService:
             order = WorkOrderRepository.find_by_id(order_id)
             if not order:
                 return {"success": False, "message": "Orden no encontrada"}
-            if order.status == "cerrada":
-                return {"success": False, "message": "La orden ya está cerrada"}
+            if order.is_closed:
+                return {"success": False, "message": "La orden ya está finalizada"}
 
             # Validar stock antes de descontar
             for part in order.parts:
@@ -160,7 +200,7 @@ class WorkOrderService:
                 if not result["success"]:
                     return {"success": False, "message": result["message"]}
 
-            WorkOrderRepository.update_by_id(order_id, {"status": "cerrada", "updated_at": datetime.now()})
-            return {"success": True, "message": "Orden cerrada y stock descontado exitosamente"}
+            WorkOrderRepository.update_by_id(order_id, {"status": "finalizado", "updated_at": datetime.now()})
+            return {"success": True, "message": "Orden finalizada y stock descontado exitosamente"}
         except Exception as e:
             return {"success": False, "message": f"Error al cerrar la orden: {e}"}

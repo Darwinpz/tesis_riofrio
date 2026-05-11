@@ -101,6 +101,21 @@ class StockMovementRepository:
             raise
 
     @classmethod
+    def find_top_seller_ids(cls, limit: int = 6) -> list:
+        try:
+            pipeline = [
+                {"$match": {"movement_type": "salida",
+                            "motive": {"$in": ["venta_directa", "orden_trabajo"]}}},
+                {"$group": {"_id": "$spare_part_id", "total_sold": {"$sum": "$quantity"}}},
+                {"$sort": {"total_sold": -1}},
+                {"$limit": limit}
+            ]
+            return list(cls._get_collection().aggregate(pipeline))
+        except PyMongoError as e:
+            print(f"Error al obtener top vendidos en la BD: {e}")
+            raise
+
+    @classmethod
     def find_all_filtered(cls, spare_part_id: str = None, movement_type: str = None,
                           start_date: datetime = None, end_date: datetime = None) -> List[StockMovementModel]:
         try:

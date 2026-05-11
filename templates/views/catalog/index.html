@@ -1,0 +1,179 @@
+{% extends 'base.html' %}
+{% block title %}Catálogo{% endblock %}
+{% block body %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3 class="mb-0"><i class="bi bi-shop me-2"></i>Catálogo de Repuestos y Servicios</h3>
+</div>
+
+<!-- Tabs -->
+<ul class="nav nav-tabs mb-4" id="catalogTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="parts-tab" data-bs-toggle="tab"
+                data-bs-target="#partsPane" type="button" role="tab">
+            <i class="bi bi-gear me-1"></i>Repuestos
+            <span class="badge bg-secondary ms-1">{{ total }}</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="services-tab" data-bs-toggle="tab"
+                data-bs-target="#servicesPane" type="button" role="tab">
+            <i class="bi bi-tools me-1"></i>Servicios
+            <span class="badge bg-secondary ms-1">{{ services | length }}</span>
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content" id="catalogTabsContent">
+
+    <!-- REPUESTOS -->
+    <div class="tab-pane fade show active" id="partsPane" role="tabpanel">
+        <!-- Filtros -->
+        <form method="GET" class="row g-2 mb-4">
+            <input type="hidden" name="page" value="1">
+            <div class="col-sm-4">
+                <input type="text" name="search" class="form-control" placeholder="Buscar por código o nombre..."
+                       value="{{ filter_search }}">
+            </div>
+            <div class="col-sm-3">
+                <select name="category_id" class="form-select">
+                    <option value="">Todas las categorías</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.id }}" {{ 'selected' if filter_category == cat.id }}>{{ cat.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-sm-3">
+                <select name="brand_id" class="form-select">
+                    <option value="">Todas las marcas</option>
+                    {% for b in brands %}
+                    <option value="{{ b.id }}" {{ 'selected' if filter_brand == b.id }}>{{ b.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-sm-2 d-flex gap-1">
+                <button type="submit" class="btn btn-dark flex-fill">
+                    <i class="bi bi-search"></i>
+                </button>
+                <a href="{{ url_for('catalog.index') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-x"></i>
+                </a>
+            </div>
+        </form>
+
+        {% if parts %}
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mb-4">
+            {% for part in parts %}
+            <div class="col">
+                <div class="card h-100 shadow-sm border-0">
+                    {% if part.imagen %}
+                    <img src="/{{ part.imagen }}" class="card-img-top"
+                         style="height:160px;object-fit:cover;" alt="{{ part.name }}">
+                    {% else %}
+                    <div class="card-img-top bg-light d-flex align-items-center justify-content-center"
+                         style="height:160px;">
+                        <i class="bi bi-gear text-muted" style="font-size:3rem;opacity:.3;"></i>
+                    </div>
+                    {% endif %}
+                    <div class="card-body d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-start mb-1">
+                            <span class="badge bg-dark">{{ part.code }}</span>
+                            {% if part.category_id and categories_map.get(part.category_id) %}
+                            <span class="badge bg-secondary">{{ categories_map.get(part.category_id) }}</span>
+                            {% endif %}
+                        </div>
+                        <h6 class="card-title mb-1">{{ part.name }}</h6>
+                        {% if part.brand_id and brands_map.get(part.brand_id) %}
+                        <small class="text-muted mb-2">
+                            <i class="bi bi-bookmark me-1"></i>{{ brands_map.get(part.brand_id) }}
+                        </small>
+                        {% endif %}
+                        {% if part.description %}
+                        <p class="card-text text-muted small flex-grow-1">
+                            {{ part.description[:100] }}{% if part.description|length > 100 %}...{% endif %}
+                        </p>
+                        {% else %}
+                        <div class="flex-grow-1"></div>
+                        {% endif %}
+                        <div class="d-flex justify-content-between align-items-center mt-3">
+                            <span class="fs-5 fw-bold text-dark">
+                                ${{ "%.2f" | format(part.precio_venta) }}
+                            </span>
+                            {% if part.stock_actual > 0 %}
+                            <span class="badge bg-success">
+                                <i class="bi bi-check-circle me-1"></i>Disponible
+                            </span>
+                            {% else %}
+                            <span class="badge bg-danger">Sin stock</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Paginación -->
+        {% if total_pages > 1 %}
+        <nav class="d-flex justify-content-between align-items-center">
+            <small class="text-muted">{{ total }} repuestos encontrados</small>
+            <ul class="pagination pagination-sm mb-0">
+                {% for p in range(1, total_pages + 1) %}
+                <li class="page-item {{ 'active' if p == page }}">
+                    <a class="page-link"
+                       href="?page={{ p }}&search={{ filter_search }}&category_id={{ filter_category }}&brand_id={{ filter_brand }}">
+                        {{ p }}
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
+        </nav>
+        {% endif %}
+        {% else %}
+        <div class="text-center text-muted py-5">
+            <i class="bi bi-search fs-1 d-block mb-3 opacity-25"></i>
+            No se encontraron repuestos con los filtros seleccionados.
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- SERVICIOS -->
+    <div class="tab-pane fade" id="servicesPane" role="tabpanel">
+        {% if services %}
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+            {% for s in services %}
+            <div class="col">
+                <div class="card h-100 shadow-sm border-0">
+                    <div class="card-body d-flex flex-column">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="bg-dark rounded-circle d-flex align-items-center justify-content-center me-3"
+                                 style="width:48px;height:48px;flex-shrink:0;">
+                                <i class="bi bi-tools text-white fs-5"></i>
+                            </div>
+                            <h5 class="card-title mb-0">{{ s.name }}</h5>
+                        </div>
+                        {% if s.description %}
+                        <p class="card-text text-muted small flex-grow-1">{{ s.description }}</p>
+                        {% else %}
+                        <div class="flex-grow-1"></div>
+                        {% endif %}
+                        <div class="mt-3 pt-3 border-top">
+                            <span class="fs-4 fw-bold text-dark">
+                                ${{ "%.2f" | format(s.price) }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-5">
+            <i class="bi bi-tools fs-1 d-block mb-3 opacity-25"></i>
+            No hay servicios disponibles en este momento.
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}

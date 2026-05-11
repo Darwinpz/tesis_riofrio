@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Nuevo Servicio' if action == 'create' else 'Editar Servicio' }}{% endblock %}
+{% block body %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="d-flex align-items-center mb-4 gap-2">
+            <a href="{{ url_for('services.index') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left"></i>
+            </a>
+            <h4 class="mb-0">{{ 'Nuevo Servicio' if action == 'create' else 'Editar Servicio' }}</h4>
+        </div>
+        <div class="card shadow-sm border-0">
+            <div class="card-body">
+                <form method="POST"
+                      action="{{ url_for('services.create') if action == 'create' else url_for('services.edit', service_id=service.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="mb-3">
+                        <label class="form-label fw-medium">
+                            Nombre del servicio <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" name="name" class="form-control" required
+                               value="{{ service.name if service else '' }}"
+                               placeholder="Ej: Alineación, Balanceo, Cambio de aceite...">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-medium">Descripción</label>
+                        <textarea name="description" class="form-control" rows="3"
+                                  placeholder="Descripción del servicio...">{{ service.description if service else '' }}</textarea>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label fw-medium">
+                            Precio ($) <span class="text-danger">*</span>
+                        </label>
+                        <input type="number" name="price" class="form-control"
+                               min="0" step="0.01" required
+                               value="{{ '%.2f' | format(service.price) if service else '0.00' }}"
+                               placeholder="0.00">
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-dark flex-fill">
+                            <i class="bi bi-save me-1"></i>Guardar
+                        </button>
+                        <a href="{{ url_for('services.index') }}" class="btn btn-outline-secondary flex-fill">Cancelar</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

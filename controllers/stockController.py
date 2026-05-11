@@ -1,9 +1,15 @@
-from flask import render_template, request, redirect, url_for, Blueprint, flash, session
+import os
+from flask import render_template, request, redirect, url_for, Blueprint, flash, session, current_app
 from services.stockService import StockService
 from services.sparePartService import SparePartService
 from utils.authDecorator import role_required
 
 stock_bp = Blueprint('stock', __name__, url_prefix='/stock')
+
+
+def _upload_folder():
+    return os.path.join(current_app.static_folder, "uploads", "facturas")
+
 
 @stock_bp.route('/', methods=['GET'])
 @role_required('admin', 'operator')
@@ -23,7 +29,6 @@ def index():
     )
     parts = SparePartService.get_all_active().get("parts", [])
 
-    # Enriquecer movimientos con nombre del repuesto
     parts_map = {p.id: p.name for p in parts}
     movements = result.get("movements", [])
     for m in movements:
@@ -39,6 +44,7 @@ def index():
                            filter_type=movement_type or '',
                            filter_start=start_date or '',
                            filter_end=end_date or '')
+
 
 @stock_bp.route('/entry', methods=['GET', 'POST'])
 @role_required('admin', 'operator')
@@ -56,14 +62,17 @@ def entry():
     motive = request.form.get('motive', '').strip()
     note = request.form.get('note', '').strip()
     user_id = session.get("user_id")
+    attachment_file = request.files.get('attachment')
 
-    result = StockService.register_entry(spare_part_id, quantity, motive, note, user_id)
+    result = StockService.register_entry(spare_part_id, quantity, motive, note, user_id,
+                                         attachment_file=attachment_file,
+                                         upload_folder=_upload_folder())
     if result["success"]:
         flash(result["message"], 'success')
         return redirect(url_for('stock.index'))
     flash(result["message"], 'danger')
-    return render_template('/views/stock/entry.html', parts=parts,
-                           preselect=spare_part_id)
+    return render_template('/views/stock/entry.html', parts=parts, preselect=spare_part_id)
+
 
 @stock_bp.route('/exit', methods=['GET', 'POST'])
 @role_required('admin', 'operator')
@@ -81,11 +90,13 @@ def exit():
     motive = request.form.get('motive', '').strip()
     note = request.form.get('note', '').strip()
     user_id = session.get("user_id")
+    attachment_file = request.files.get('attachment')
 
-    result = StockService.register_exit(spare_part_id, quantity, motive, note, user_id)
+    result = StockService.register_exit(spare_part_id, quantity, motive, note, user_id,
+                                         attachment_file=attachment_file,
+                                         upload_folder=_upload_folder())
     if result["success"]:
         flash(result["message"], 'success')
         return redirect(url_for('stock.index'))
     flash(result["message"], 'danger')
-    return render_template('/views/stock/exit.html', parts=parts,
-                           preselect=spare_part_id)
+    return render_template('/views/stock/exit.html', parts=parts, preselect=spare_part_id)

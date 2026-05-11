@@ -13,6 +13,8 @@ from controllers.stockController import stock_bp
 from controllers.workOrderController import work_order_bp
 from controllers.brandController import brand_bp
 from controllers.vehicleModelController import vehicle_model_bp
+from controllers.serviceController import service_bp
+from controllers.catalogController import catalog_bp
 from dotenv import load_dotenv
 from commands.adminCommands import seed_admin_command
 import os
@@ -47,6 +49,8 @@ app.register_blueprint(stock_bp)
 app.register_blueprint(work_order_bp)
 app.register_blueprint(brand_bp)
 app.register_blueprint(vehicle_model_bp)
+app.register_blueprint(service_bp)
+app.register_blueprint(catalog_bp)
 
 # -- Comandos CLI --
 app.cli.add_command(seed_admin_command)

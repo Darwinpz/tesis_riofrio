@@ -77,9 +77,20 @@ class WorkOrderRepository:
             raise
 
     @classmethod
+    def find_by_mechanic(cls, mechanic_id: str) -> List[WorkOrderModel]:
+        try:
+            collection = cls._get_collection()
+            return [WorkOrderModel.from_dict(o) for o in
+                    collection.find({"mechanic_id": mechanic_id}).sort("created_at", -1)]
+        except PyMongoError as e:
+            print(f"Error al buscar órdenes del mecánico en la BD: {e}")
+            raise
+
+    @classmethod
     def count_active(cls) -> int:
         try:
-            return cls._get_collection().count_documents({"status": {"$in": ["abierta", "en_proceso"]}})
+            active = ["ingresado", "revision", "resultado", "abierta", "en_proceso"]
+            return cls._get_collection().count_documents({"status": {"$in": active}})
         except PyMongoError as e:
             print(f"Error al contar órdenes activas en la BD: {e}")
             raise

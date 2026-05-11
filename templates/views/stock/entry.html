@@ -11,7 +11,8 @@
         </div>
         <div class="card shadow-sm border-0">
             <div class="card-body">
-                <form method="POST" action="{{ url_for('stock.entry') }}">
+                <form method="POST" action="{{ url_for('stock.entry') }}"
+                      enctype="multipart/form-data">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-3">
                         <label class="form-label">Repuesto <span class="text-danger">*</span></label>
@@ -44,10 +45,18 @@
                             <option value="ajuste">Ajuste de inventario</option>
                         </select>
                     </div>
-                    <div class="mb-4">
+                    <div class="mb-3">
                         <label class="form-label">Nota</label>
                         <textarea name="note" class="form-control" rows="2"
                                   placeholder="Observaciones adicionales..."></textarea>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label">
+                            <i class="bi bi-paperclip me-1"></i>Factura / Comprobante
+                            <span class="text-muted small">(PDF, imagen)</span>
+                        </label>
+                        <input type="file" name="attachment" class="form-control"
+                               accept=".pdf,.png,.jpg,.jpeg,.gif,.webp">
                     </div>
                     <div class="d-flex gap-2">
                         <button type="submit" class="btn btn-success flex-fill">

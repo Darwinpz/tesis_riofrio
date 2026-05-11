@@ -21,9 +21,18 @@
                 <div class="card-body">
                     <div class="row g-3">
                         <div class="col-md-4">
-                            <label class="form-label">Código <span class="text-danger">*</span></label>
-                            <input type="text" name="code" class="form-control" required
-                                   value="{{ part.code if part else '' }}" placeholder="Ej: FIL-001">
+                            <label class="form-label">
+                                Código
+                                {% if action == 'create' %}
+                                <span class="text-muted small">(opcional, se genera automáticamente)</span>
+                                {% else %}
+                                <span class="text-danger">*</span>
+                                {% endif %}
+                            </label>
+                            <input type="text" name="code" class="form-control"
+                                   {% if action != 'create' %}required{% endif %}
+                                   value="{{ part.code if part else '' }}"
+                                   placeholder="{{ 'Se genera como REP-0001' if action == 'create' else 'Código del repuesto' }}">
                         </div>
                         <div class="col-md-8">
                             <label class="form-label">Nombre <span class="text-danger">*</span></label>

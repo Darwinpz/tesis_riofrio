@@ -8,7 +8,8 @@
     <h4 class="mb-0">Editar Orden <code>{{ order.number }}</code></h4>
 </div>
 
-<form method="POST" action="{{ url_for('work_orders.edit', order_id=order.id) }}" id="orderForm">
+<form method="POST" action="{{ url_for('work_orders.edit', order_id=order.id) }}" id="orderForm"
+      enctype="multipart/form-data">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="parts_json" id="partsJson" value="{{ order.parts | tojson }}">
 
@@ -20,13 +21,27 @@
                     <div class="row g-3">
                         <div class="col-6">
                             <label class="form-label">Marca <span class="text-danger">*</span></label>
-                            <input type="text" name="vehicle_brand" class="form-control" required
-                                   value="{{ order.vehicle_brand }}">
+                            <select name="vehicle_brand" id="brandSel" class="form-select" required>
+                                <option value="">Seleccionar marca...</option>
+                                {% for b in brands %}
+                                <option value="{{ b.name }}" data-id="{{ b.id }}"
+                                    {% if order.vehicle_brand == b.name %}selected{% endif %}>
+                                    {{ b.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
                         </div>
                         <div class="col-6">
                             <label class="form-label">Modelo <span class="text-danger">*</span></label>
-                            <input type="text" name="vehicle_model" class="form-control" required
-                                   value="{{ order.vehicle_model }}">
+                            <select name="vehicle_model" id="modelSel" class="form-select" required>
+                                <option value="">Seleccionar modelo...</option>
+                                {% for vm in vehicle_models_list %}
+                                <option value="{{ vm.name }}" data-brand="{{ vm.brand_id or '' }}"
+                                    {% if order.vehicle_model == vm.name %}selected{% endif %}>
+                                    {{ vm.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
                         </div>
                         <div class="col-12">
                             <label class="form-label">Placa <span class="text-danger">*</span></label>
@@ -38,7 +53,7 @@
             </div>
 
             <div class="card shadow-sm border-0 mb-3">
-                <div class="card-header bg-dark text-white">Cliente y Estado</div>
+                <div class="card-header bg-dark text-white">Cliente, Estado y Mecánico</div>
                 <div class="card-body">
                     <div class="mb-3">
                         <label class="form-label">Cliente</label>
@@ -50,14 +65,47 @@
                             {% endfor %}
                         </select>
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label">Mecánico asignado</label>
+                        <select name="mechanic_id" class="form-select">
+                            <option value="">Sin asignar</option>
+                            {% for m in mechanics %}
+                            <option value="{{ m.id }}" {{ 'selected' if m.id == order.mechanic_id }}>
+                                {{ m.full_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
                     <div>
                         <label class="form-label">Estado</label>
                         <select name="status" class="form-select">
-                            <option value="abierta" {{ 'selected' if order.status == 'abierta' }}>Abierta</option>
-                            <option value="en_proceso" {{ 'selected' if order.status == 'en_proceso' }}>En Proceso</option>
+                            <option value="ingresado" {{ 'selected' if order.status == 'ingresado' }}>Ingresado</option>
+                            <option value="revision" {{ 'selected' if order.status == 'revision' }}>En Revisión</option>
+                            <option value="resultado" {{ 'selected' if order.status == 'resultado' }}>Resultado del Chequeo</option>
                         </select>
-                        <small class="text-muted">Para cerrar la orden usa el botón en el detalle.</small>
+                        <small class="text-muted">Para finalizar la orden usa el botón en el detalle.</small>
                     </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0 mb-3">
+                <div class="card-header bg-dark text-white">
+                    <i class="bi bi-camera me-1"></i>Agregar Fotos
+                </div>
+                <div class="card-body">
+                    {% if order.vehicle_photos %}
+                    <div class="row g-1 mb-2">
+                        {% for photo in order.vehicle_photos %}
+                        <div class="col-4">
+                            <img src="/{{ photo }}" class="img-fluid rounded border"
+                                 style="height:60px;width:100%;object-fit:cover;" alt="">
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    <input type="file" name="vehicle_photos" class="form-control"
+                           accept="image/*" multiple>
+                    <small class="text-muted">Las fotos nuevas se agregan a las existentes</small>
                 </div>
             </div>
 
@@ -149,6 +197,34 @@
 
 {% block extra_scripts %}
 <script>
+// --- Brand / Model filtering ---
+const brandSel = document.getElementById('brandSel');
+const modelSel = document.getElementById('modelSel');
+const allModelOptions = Array.from(modelSel.options).slice(1);
+
+(function() {
+    const brandsMap = {};
+    {% for b in brands %}brandsMap["{{ b.name }}"] = "{{ b.id }}";{% endfor %}
+
+    function applyFilter() {
+        const brandName = brandSel.value;
+        const brandId = brandsMap[brandName] || '';
+        const current = modelSel.value;
+        while (modelSel.options.length > 1) modelSel.remove(1);
+        allModelOptions.forEach(opt => {
+            if (!brandId || opt.dataset.brand === brandId || opt.dataset.brand === '') {
+                modelSel.appendChild(opt.cloneNode(true));
+            }
+        });
+        modelSel.value = current;
+        if (!modelSel.value) modelSel.value = '';
+    }
+
+    brandSel.addEventListener('change', applyFilter);
+    applyFilter();
+})();
+
+// --- Parts logic ---
 let partsData = {{ order.parts | tojson }};
 
 document.getElementById('partSelector').addEventListener('change', function() {

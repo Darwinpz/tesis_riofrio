@@ -21,7 +21,10 @@
                         <label class="form-label fw-medium">Rol del usuario</label>
                         <select name="role" class="form-select" required>
                             <option value="client" {% if profile.role == 'client' %}selected{% endif %}>
-                                Cliente — solo lectura
+                                Cliente — visualiza sus órdenes
+                            </option>
+                            <option value="mechanic" {% if profile.role == 'mechanic' %}selected{% endif %}>
+                                Mecánico — atiende órdenes asignadas
                             </option>
                             <option value="operator" {% if profile.role == 'operator' %}selected{% endif %}>
                                 Operador — gestión de repuestos y órdenes

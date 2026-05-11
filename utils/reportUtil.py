@@ -261,3 +261,246 @@ def generate_work_order_pdf(order, client_name: str) -> bytes:
 
     doc.build(story)
     return buffer.getvalue()
+
+
+def generate_reception_receipt(order, client_name: str, mechanic_name: str = "") -> bytes:
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4,
+                            leftMargin=1.5*cm, rightMargin=1.5*cm,
+                            topMargin=1.5*cm, bottomMargin=2*cm)
+    styles = getSampleStyleSheet()
+    story = []
+
+    # ── Cabecera dual-columna ──────────────────────────────────────────────────
+    brand_style = ParagraphStyle('brand', parent=styles['Normal'],
+                                 fontName='Helvetica-Bold', fontSize=18,
+                                 textColor=colors.white, alignment=TA_LEFT)
+    title_style = ParagraphStyle('rtitle', parent=styles['Normal'],
+                                 fontName='Helvetica-Bold', fontSize=13,
+                                 textColor=colors.white, alignment=TA_RIGHT)
+    hdr_data = [[Paragraph("Mechita", brand_style),
+                 Paragraph("COMPROBANTE DE RECEPCIÓN", title_style)]]
+    hdr_tbl = Table(hdr_data, colWidths=['*', 8*cm])
+    hdr_tbl.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), HEADER_COLOR),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('LEFTPADDING', (0, 0), (0, -1), 12),
+        ('RIGHTPADDING', (-1, 0), (-1, -1), 12),
+        ('TOPPADDING', (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+    ]))
+    story.append(hdr_tbl)
+
+    # ── Sub-cabecera: número de orden y fecha ─────────────────────────────────
+    sub_l = ParagraphStyle('sl', parent=styles['Normal'],
+                           fontName='Helvetica-Bold', fontSize=10,
+                           textColor=colors.white, alignment=TA_LEFT)
+    sub_r = ParagraphStyle('sr', parent=styles['Normal'],
+                           fontName='Helvetica', fontSize=9,
+                           textColor=colors.white, alignment=TA_RIGHT)
+    entry_date = (order.created_at.strftime("%d/%m/%Y %H:%M")
+                  if hasattr(order.created_at, 'strftime') else str(order.created_at))
+    sub_data = [[Paragraph(f"Orden N° {order.number}", sub_l),
+                 Paragraph(f"Fecha de ingreso: {entry_date}", sub_r)]]
+    sub_tbl = Table(sub_data, colWidths=['*', 8*cm])
+    sub_tbl.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), ACCENT_COLOR),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('LEFTPADDING', (0, 0), (0, -1), 12),
+        ('RIGHTPADDING', (-1, 0), (-1, -1), 12),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+    ]))
+    story.append(sub_tbl)
+    story.append(Spacer(1, 0.5*cm))
+
+    def section_header(text):
+        sh_style = ParagraphStyle('sh', parent=styles['Normal'],
+                                  fontName='Helvetica-Bold', fontSize=9,
+                                  textColor=colors.white, alignment=TA_LEFT)
+        sh_data = [[Paragraph(text.upper(), sh_style)]]
+        sh_tbl = Table(sh_data, colWidths=['*'])
+        sh_tbl.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), DARK_GRAY),
+            ('LEFTPADDING', (0, 0), (-1, -1), 8),
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ]))
+        return sh_tbl
+
+    lbl = ParagraphStyle('lbl', parent=styles['Normal'],
+                         fontName='Helvetica-Bold', fontSize=9)
+    val = ParagraphStyle('val', parent=styles['Normal'],
+                         fontName='Helvetica', fontSize=9)
+
+    # ── Datos del vehículo ────────────────────────────────────────────────────
+    story.append(section_header("Datos del Vehículo"))
+    story.append(Spacer(1, 0.15*cm))
+    v_data = [
+        [Paragraph("Marca:", lbl), Paragraph(order.vehicle_brand or "—", val),
+         Paragraph("Modelo:", lbl), Paragraph(order.vehicle_model or "—", val)],
+        [Paragraph("Placa:", lbl), Paragraph(order.vehicle_plate or "—", val),
+         Paragraph("Estado al ingreso:", lbl), Paragraph(order.status_label, val)],
+    ]
+    v_tbl = Table(v_data, colWidths=[2.8*cm, 5.5*cm, 3.5*cm, 5.5*cm])
+    v_tbl.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), LIGHT_GRAY),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#dee2e6")),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 5),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+        ('LEFTPADDING', (0, 0), (-1, -1), 6),
+    ]))
+    story.append(v_tbl)
+    story.append(Spacer(1, 0.4*cm))
+
+    # ── Cliente y mecánico ────────────────────────────────────────────────────
+    story.append(section_header("Cliente y Mecánico Asignado"))
+    story.append(Spacer(1, 0.15*cm))
+    cm_data = [
+        [Paragraph("Cliente:", lbl), Paragraph(client_name or "—", val),
+         Paragraph("Mecánico:", lbl), Paragraph(mechanic_name or "Sin asignar", val)],
+    ]
+    cm_tbl = Table(cm_data, colWidths=[2.8*cm, 5.5*cm, 3.5*cm, 5.5*cm])
+    cm_tbl.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), LIGHT_GRAY),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#dee2e6")),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 5),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+        ('LEFTPADDING', (0, 0), (-1, -1), 6),
+    ]))
+    story.append(cm_tbl)
+    story.append(Spacer(1, 0.4*cm))
+
+    # ── Observaciones ─────────────────────────────────────────────────────────
+    story.append(section_header("Observaciones del Vehículo al Ingreso"))
+    story.append(Spacer(1, 0.15*cm))
+    obs_text = order.notes or "Sin observaciones registradas."
+    obs_data = [[Paragraph(obs_text, val)]]
+    obs_tbl = Table(obs_data, colWidths=['*'])
+    obs_tbl.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), LIGHT_GRAY),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#dee2e6")),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('LEFTPADDING', (0, 0), (-1, -1), 8),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+    ]))
+    story.append(obs_tbl)
+    story.append(Spacer(1, 0.4*cm))
+
+    # ── Repuestos / trabajos ──────────────────────────────────────────────────
+    story.append(section_header("Repuestos / Trabajos Registrados"))
+    story.append(Spacer(1, 0.15*cm))
+
+    if order.parts:
+        ph = ["Descripción", "Cantidad", "Precio Unit.", "Subtotal"]
+        p_rows = [ph]
+        total_parts = 0.0
+        for p in order.parts:
+            sub = float(p.get('subtotal', 0))
+            total_parts += sub
+            p_rows.append([
+                p.get("spare_part_name", "—"),
+                str(p.get("quantity", 0)),
+                f"${float(p.get('unit_price', 0)):.2f}",
+                f"${sub:.2f}",
+            ])
+        p_tbl = Table(p_rows, colWidths=[8.5*cm, 2.2*cm, 3*cm, 3*cm], repeatRows=1)
+        p_tbl.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), ACCENT_COLOR),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 9),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 8),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, LIGHT_GRAY]),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#dee2e6")),
+            ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
+            ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ]))
+        story.append(p_tbl)
+        story.append(Spacer(1, 0.2*cm))
+
+        tot_r_style = ParagraphStyle('trr', parent=styles['Normal'],
+                                     fontName='Helvetica-Bold', fontSize=10,
+                                     alignment=TA_RIGHT)
+        tot_rows = [
+            ["", "Subtotal repuestos:", f"${total_parts:.2f}"],
+            ["", "Mano de obra:", f"${order.labor_cost:.2f}"],
+            ["", "TOTAL:", f"${order.total:.2f}"],
+        ]
+        tot_tbl = Table(tot_rows, colWidths=['*', 4.5*cm, 3*cm])
+        tot_tbl.setStyle(TableStyle([
+            ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
+            ('FONTNAME', (0, 0), (-1, 1), 'Helvetica'),
+            ('FONTNAME', (0, 2), (-1, 2), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('FONTSIZE', (0, 2), (-1, 2), 12),
+            ('TEXTCOLOR', (0, 2), (-1, 2), ACCENT_COLOR),
+            ('TOPPADDING', (0, 0), (-1, -1), 3),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ]))
+        story.append(tot_tbl)
+    else:
+        story.append(Paragraph("Sin repuestos registrados al momento de la recepción.", val))
+
+    story.append(Spacer(1, 0.4*cm))
+
+    # ── Aviso fotos ───────────────────────────────────────────────────────────
+    if order.vehicle_photos:
+        n = len(order.vehicle_photos)
+        photo_data = [[Paragraph(
+            f"📷  Se registraron {n} foto(s) del vehículo al ingreso. "
+            "Las fotos están disponibles en el sistema.",
+            ParagraphStyle('ph', parent=styles['Normal'],
+                           fontName='Helvetica', fontSize=8,
+                           textColor=colors.HexColor("#856404")))]]
+        ph_tbl = Table(photo_data, colWidths=['*'])
+        ph_tbl.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor("#fff3cd")),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#ffc107")),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('LEFTPADDING', (0, 0), (-1, -1), 8),
+        ]))
+        story.append(ph_tbl)
+        story.append(Spacer(1, 0.4*cm))
+
+    # ── Firmas ────────────────────────────────────────────────────────────────
+    story.append(HRFlowable(width="100%", thickness=1, color=DARK_GRAY))
+    story.append(Spacer(1, 1.2*cm))
+    sig_lbl = ParagraphStyle('sig', parent=styles['Normal'],
+                              fontName='Helvetica', fontSize=9,
+                              alignment=TA_CENTER)
+    sig_data = [[Paragraph("_______________________________", sig_lbl),
+                 Paragraph("_______________________________", sig_lbl)],
+                [Paragraph("Firma del Cliente", sig_lbl),
+                 Paragraph("Firma del Operador / Recepcionista", sig_lbl)]]
+    sig_tbl = Table(sig_data, colWidths=['*', '*'])
+    sig_tbl.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+    ]))
+    story.append(sig_tbl)
+    story.append(Spacer(1, 0.6*cm))
+
+    # ── Pie de página ─────────────────────────────────────────────────────────
+    footer_style = ParagraphStyle('ft', parent=styles['Normal'],
+                                  fontName='Helvetica', fontSize=7,
+                                  textColor=DARK_GRAY, alignment=TA_CENTER)
+    story.append(HRFlowable(width="100%", thickness=0.5, color=DARK_GRAY))
+    story.append(Spacer(1, 0.15*cm))
+    story.append(Paragraph(
+        f"Generado por Mechita · {datetime.now().strftime('%d/%m/%Y %H:%M')} · "
+        "Documento de recepción — conservar para seguimiento de la orden.",
+        footer_style))
+
+    doc.build(story)
+    return buffer.getvalue()

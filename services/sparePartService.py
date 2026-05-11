@@ -46,11 +46,11 @@ class SparePartService:
     def create(data: dict, imagen_file=None, upload_folder: str = None) -> Dict:
         code = data.get("code", "").strip()
         name = data.get("name", "").strip()
-        if not code:
-            return {"success": False, "message": "El código es obligatorio"}
         if not name:
             return {"success": False, "message": "El nombre es obligatorio"}
         try:
+            if not code:
+                code = SparePartRepository.get_next_code()
             if SparePartRepository.exist_by_code(code):
                 return {"success": False, "message": "Ya existe un repuesto con ese código"}
 

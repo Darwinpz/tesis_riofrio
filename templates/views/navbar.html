@@ -75,18 +75,37 @@
                             <i class="bi bi-people me-1"></i>Usuarios
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if request.path.startswith('/services') }}"
+                           href="{{ url_for('services.index') }}">
+                            <i class="bi bi-tools me-1"></i>Servicios
+                        </a>
+                    </li>
                     {% endif %}
 
-                    {% if current_user.role == 'client' %}
+                    {% if current_user.role in ('client', 'mechanic') %}
                     <li class="nav-item">
                         <a class="nav-link {{ 'active' if request.path.startswith('/work-orders/my') }}"
                            href="{{ url_for('work_orders.my_orders') }}">
+                            {% if current_user.role == 'mechanic' %}
+                            <i class="bi bi-wrench me-1"></i>Mis Órdenes
+                            {% else %}
                             <i class="bi bi-clipboard me-1"></i>Mis Órdenes
+                            {% endif %}
                         </a>
                     </li>
                     {% endif %}
 
                 {% endif %}
+
+                <!-- Catálogo visible para todos -->
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if request.path.startswith('/catalog') }}"
+                       href="{{ url_for('catalog.index') }}">
+                        <i class="bi bi-shop me-1"></i>Catálogo
+                    </a>
+                </li>
+
             </ul>
 
             <ul class="navbar-nav ms-auto mb-2 mb-lg-0">

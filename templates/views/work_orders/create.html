@@ -8,7 +8,8 @@
     <h4 class="mb-0">Nueva Orden de Trabajo</h4>
 </div>
 
-<form method="POST" action="{{ url_for('work_orders.create') }}" id="orderForm">
+<form method="POST" action="{{ url_for('work_orders.create') }}" id="orderForm"
+      enctype="multipart/form-data">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="parts_json" id="partsJson" value="[]">
 
@@ -21,11 +22,23 @@
                     <div class="row g-3">
                         <div class="col-6">
                             <label class="form-label">Marca <span class="text-danger">*</span></label>
-                            <input type="text" name="vehicle_brand" class="form-control" required placeholder="Ej: Toyota">
+                            <select name="vehicle_brand" id="brandSel" class="form-select" required>
+                                <option value="">Seleccionar marca...</option>
+                                {% for b in brands %}
+                                <option value="{{ b.name }}">{{ b.name }}</option>
+                                {% endfor %}
+                            </select>
                         </div>
                         <div class="col-6">
                             <label class="form-label">Modelo <span class="text-danger">*</span></label>
-                            <input type="text" name="vehicle_model" class="form-control" required placeholder="Ej: Corolla">
+                            <select name="vehicle_model" id="modelSel" class="form-select" required>
+                                <option value="">Seleccionar modelo...</option>
+                                {% for vm in vehicle_models_list %}
+                                <option value="{{ vm.name }}" data-brand="{{ vm.brand_id or '' }}">
+                                    {{ vm.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
                         </div>
                         <div class="col-12">
                             <label class="form-label">Placa <span class="text-danger">*</span></label>
@@ -37,14 +50,37 @@
             </div>
 
             <div class="card shadow-sm border-0 mb-3">
-                <div class="card-header bg-dark text-white">Cliente</div>
+                <div class="card-header bg-dark text-white">Cliente y Mecánico</div>
                 <div class="card-body">
-                    <select name="client_id" class="form-select" required>
-                        <option value="">Seleccionar cliente...</option>
-                        {% for c in clients %}
-                        <option value="{{ c.id }}">{{ c.full_name }} — {{ c.email }}</option>
-                        {% endfor %}
-                    </select>
+                    <div class="mb-3">
+                        <label class="form-label">Cliente <span class="text-danger">*</span></label>
+                        <select name="client_id" class="form-select" required>
+                            <option value="">Seleccionar cliente...</option>
+                            {% for c in clients %}
+                            <option value="{{ c.id }}">{{ c.full_name }} — {{ c.email }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label">Mecánico asignado</label>
+                        <select name="mechanic_id" class="form-select">
+                            <option value="">Sin asignar</option>
+                            {% for m in mechanics %}
+                            <option value="{{ m.id }}">{{ m.full_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0 mb-3">
+                <div class="card-header bg-dark text-white">
+                    <i class="bi bi-camera me-1"></i>Fotos del Vehículo
+                </div>
+                <div class="card-body">
+                    <input type="file" name="vehicle_photos" class="form-control"
+                           accept="image/*" multiple>
+                    <small class="text-muted">Adjunta fotos del estado del vehículo al ingresar</small>
                 </div>
             </div>
 
@@ -62,7 +98,6 @@
             <div class="card shadow-sm border-0 mb-3">
                 <div class="card-header bg-dark text-white">Repuestos a Utilizar</div>
                 <div class="card-body">
-                    <!-- Selector de repuesto -->
                     <div class="row g-2 mb-3 align-items-end">
                         <div class="col-5">
                             <label class="form-label small">Repuesto</label>
@@ -99,7 +134,6 @@
                         Stock disponible: <span id="stockAvail">—</span>
                     </div>
 
-                    <!-- Tabla de repuestos -->
                     <div class="table-responsive">
                         <table class="table table-sm table-bordered mb-0" id="partsTable">
                             <thead class="table-light">
@@ -123,7 +157,6 @@
                 </div>
             </div>
 
-            <!-- Totales -->
             <div class="card shadow-sm border-0">
                 <div class="card-body">
                     <div class="row align-items-center g-3">
@@ -154,6 +187,46 @@
 
 {% block extra_scripts %}
 <script>
+// --- Brand / Model filtering ---
+const brandSel = document.getElementById('brandSel');
+const modelSel = document.getElementById('modelSel');
+const allModelOptions = Array.from(modelSel.options).slice(1);
+
+function filterModels() {
+    const selectedBrand = brandSel.options[brandSel.selectedIndex].text;
+    const current = modelSel.value;
+    while (modelSel.options.length > 1) modelSel.remove(1);
+    allModelOptions.forEach(opt => {
+        if (!brandSel.value || opt.dataset.brand === '' || opt.dataset.brand === brandSel.value) {
+            modelSel.appendChild(opt.cloneNode(true));
+        }
+    });
+    modelSel.value = current;
+    if (!modelSel.value) modelSel.value = '';
+}
+
+// We need to store brand id on option to filter by brand_id
+// Rebuild filtering using data-brand attr which holds brand_id
+(function() {
+    // get brands map name->id from server rendered data
+    const brandsMap = {};
+    {% for b in brands %}brandsMap["{{ b.name }}"] = "{{ b.id }}";{% endfor %}
+
+    brandSel.addEventListener('change', function() {
+        const brandId = brandsMap[this.value] || '';
+        const current = modelSel.value;
+        while (modelSel.options.length > 1) modelSel.remove(1);
+        allModelOptions.forEach(opt => {
+            if (!brandId || opt.dataset.brand === brandId || opt.dataset.brand === '') {
+                modelSel.appendChild(opt.cloneNode(true));
+            }
+        });
+        modelSel.value = current;
+        if (!modelSel.value) modelSel.value = '';
+    });
+})();
+
+// --- Parts logic ---
 let partsData = [];
 
 document.getElementById('partSelector').addEventListener('change', function() {
@@ -184,9 +257,7 @@ function addPart() {
         partsData.push({
             spare_part_id: opt.value,
             spare_part_name: `${opt.dataset.code} — ${opt.dataset.name}`,
-            quantity: qty,
-            unit_price: price,
-            subtotal: qty * price
+            quantity: qty, unit_price: price, subtotal: qty * price
         });
     }
     renderParts();
@@ -196,18 +267,14 @@ function addPart() {
     document.getElementById('stockAlert').classList.add('d-none');
 }
 
-function removePart(idx) {
-    partsData.splice(idx, 1);
-    renderParts();
-}
+function removePart(idx) { partsData.splice(idx, 1); renderParts(); }
 
 function renderParts() {
     const tbody = document.getElementById('partsBody');
     document.getElementById('partsJson').value = JSON.stringify(partsData);
     if (partsData.length === 0) {
         tbody.innerHTML = '<tr id="emptyRow"><td colspan="5" class="text-center text-muted small py-2">Aún no hay repuestos agregados</td></tr>';
-        updateTotal();
-        return;
+        updateTotal(); return;
     }
     tbody.innerHTML = partsData.map((p, i) => `
         <tr>

@@ -70,6 +70,24 @@ class SparePartRepository:
             raise
 
     @classmethod
+    def get_next_code(cls) -> str:
+        try:
+            collection = cls._get_collection()
+            docs = collection.find({"code": {"$regex": "^REP-\\d+$"}}, {"code": 1})
+            max_num = 0
+            for doc in docs:
+                try:
+                    num = int(doc["code"].split("-")[1])
+                    if num > max_num:
+                        max_num = num
+                except Exception:
+                    pass
+            return f"REP-{max_num + 1:04d}"
+        except PyMongoError as e:
+            print(f"Error al generar código de repuesto en la BD: {e}")
+            raise
+
+    @classmethod
     def exist_by_code(cls, code: str, exclude_id: str = None) -> bool:
         try:
             collection = cls._get_collection()

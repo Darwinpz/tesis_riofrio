@@ -3,9 +3,15 @@
 {% block body %}
 <div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-2">
     <div class="d-flex align-items-center gap-2">
+        {% if current_user.role in ('admin', 'operator') %}
         <a href="{{ url_for('work_orders.index') }}" class="btn btn-outline-secondary btn-sm">
             <i class="bi bi-arrow-left"></i>
         </a>
+        {% else %}
+        <a href="{{ url_for('work_orders.my_orders') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+        {% endif %}
         <div>
             <h4 class="mb-0">Orden <code>{{ order.number }}</code></h4>
             <small class="text-muted">
@@ -18,26 +24,32 @@
            class="btn btn-outline-secondary btn-sm">
             <i class="bi bi-file-pdf me-1"></i>PDF
         </a>
-        {% if current_user.role in ('admin', 'operator') and order.status != 'cerrada' %}
+        <a href="{{ url_for('work_orders.receipt', order_id=order.id) }}"
+           class="btn btn-outline-dark btn-sm" target="_blank">
+            <i class="bi bi-receipt me-1"></i>Comprobante
+        </a>
+        {% if current_user.role in ('admin', 'operator') and not order.is_closed %}
         <a href="{{ url_for('work_orders.edit', order_id=order.id) }}" class="btn btn-outline-primary btn-sm">
             <i class="bi bi-pencil me-1"></i>Editar
         </a>
         <button type="button" class="btn btn-success btn-sm"
                 data-bs-toggle="modal" data-bs-target="#closeModal">
-            <i class="bi bi-check-circle me-1"></i>Cerrar Orden
+            <i class="bi bi-check-circle me-1"></i>Finalizar Orden
         </button>
         {% endif %}
     </div>
 </div>
 
-<!-- Estado badge grande -->
+<!-- Estado -->
 <div class="mb-4">
-    {% if order.status == 'abierta' %}
-        <span class="badge bg-primary fs-6">Abierta</span>
-    {% elif order.status == 'en_proceso' %}
-        <span class="badge bg-warning text-dark fs-6">En Proceso</span>
+    {% if order.status in ('ingresado', 'abierta') %}
+        <span class="badge bg-primary fs-6">Ingresado</span>
+    {% elif order.status in ('revision', 'en_proceso') %}
+        <span class="badge bg-warning text-dark fs-6">En Revisión</span>
+    {% elif order.status == 'resultado' %}
+        <span class="badge bg-info text-dark fs-6">Resultado del Chequeo</span>
     {% else %}
-        <span class="badge bg-success fs-6">Cerrada</span>
+        <span class="badge bg-success fs-6">Finalizado</span>
     {% endif %}
 </div>
 
@@ -59,17 +71,43 @@
         </div>
 
         <div class="card shadow-sm border-0 mb-3">
-            <div class="card-header bg-dark text-white">Cliente</div>
+            <div class="card-header bg-dark text-white">Cliente y Mecánico</div>
             <div class="card-body">
-                <p class="mb-0 fw-medium">{{ order.client_name }}</p>
+                <dl class="row mb-0">
+                    <dt class="col-5 text-muted">Cliente</dt>
+                    <dd class="col-7 fw-medium">{{ order.client_name }}</dd>
+                    <dt class="col-5 text-muted">Mecánico</dt>
+                    <dd class="col-7">{{ order.mechanic_name }}</dd>
+                </dl>
             </div>
         </div>
 
         {% if order.notes %}
-        <div class="card shadow-sm border-0">
+        <div class="card shadow-sm border-0 mb-3">
             <div class="card-header bg-dark text-white">Notas</div>
             <div class="card-body">
                 <p class="mb-0 text-muted">{{ order.notes }}</p>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if order.vehicle_photos %}
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-dark text-white">
+                <i class="bi bi-images me-1"></i>Fotos del Vehículo
+            </div>
+            <div class="card-body">
+                <div class="row g-2">
+                    {% for photo in order.vehicle_photos %}
+                    <div class="col-6">
+                        <a href="/{{ photo }}" target="_blank">
+                            <img src="/{{ photo }}" class="img-fluid rounded border"
+                                 style="height:100px;width:100%;object-fit:cover;"
+                                 alt="Foto vehículo">
+                        </a>
+                    </div>
+                    {% endfor %}
+                </div>
             </div>
         </div>
         {% endif %}
@@ -132,17 +170,17 @@
     </div>
 </div>
 
-<!-- Modal cerrar orden -->
-{% if current_user.role in ('admin', 'operator') and order.status != 'cerrada' %}
+<!-- Modal finalizar orden -->
+{% if current_user.role in ('admin', 'operator') and not order.is_closed %}
 <div class="modal fade" id="closeModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title"><i class="bi bi-check-circle text-success me-1"></i>Cerrar Orden de Trabajo</h5>
+                <h5 class="modal-title"><i class="bi bi-check-circle text-success me-1"></i>Finalizar Orden de Trabajo</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <p>Al cerrar la orden se descontará automáticamente el stock de los repuestos asignados:</p>
+                <p>Al finalizar la orden se descontará automáticamente el stock de los repuestos asignados:</p>
                 <ul class="small">
                     {% for p in order.parts %}
                     <li>{{ p.spare_part_name }} — {{ p.quantity }} unid.</li>
@@ -157,7 +195,7 @@
                 <form method="POST" action="{{ url_for('work_orders.close', order_id=order.id) }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="btn btn-success">
-                        <i class="bi bi-check-lg me-1"></i>Cerrar y descontar stock
+                        <i class="bi bi-check-lg me-1"></i>Finalizar y descontar stock
                     </button>
                 </form>
             </div>

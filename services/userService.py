@@ -163,8 +163,57 @@ class UserService:
             return {"success": False, "message": f"Error al actualizar la foto: {e}"}
 
     @staticmethod
+    def get_mechanics() -> Dict:
+        try:
+            users = UserRepository.find_by_role("mechanic")
+            mechanics = []
+            for user in users:
+                person = PersonRepository.find_by_user_id(user.id)
+                mechanics.append({
+                    "id": user.id,
+                    "email": user.email,
+                    "full_name": f"{person.first_name} {person.last_name}" if person else user.email
+                })
+            return {"success": True, "mechanics": mechanics}
+        except Exception as e:
+            return {"success": False, "message": f"Error al obtener mecánicos: {e}"}
+
+    @staticmethod
+    def create_user_by_admin(identification: str, first_name: str, last_name: str,
+                              email: str, password: str, role: str) -> Dict:
+        valid_roles = ("admin", "operator", "mechanic", "client")
+        if not first_name or not first_name.strip():
+            return {"success": False, "message": "El nombre es obligatorio"}
+        if not last_name or not last_name.strip():
+            return {"success": False, "message": "El apellido es obligatorio"}
+        if not email or not email.strip():
+            return {"success": False, "message": "El email es obligatorio"}
+        if not password or len(password) < 6:
+            return {"success": False, "message": "La contraseña debe tener al menos 6 caracteres"}
+        if role not in valid_roles:
+            return {"success": False, "message": "Rol inválido"}
+
+        user_id = None
+        try:
+            if UserRepository.exist_by_email(email):
+                return {"success": False, "message": "Ya existe un usuario con ese correo electrónico"}
+            if identification and PersonRepository.exist_by_identification(identification):
+                return {"success": False, "message": "Ya existe un usuario con esa identificación"}
+
+            hashed_password = generate_password_hash(password)
+            user = UserModel(email, password=hashed_password, role=role)
+            user_id = UserRepository.create(user)
+            person = PersonModel(user_id, identification or "", first_name.strip(), last_name.strip())
+            PersonRepository.create(person)
+            return {"success": True, "message": f"Usuario creado exitosamente con rol '{role}'"}
+        except Exception as e:
+            if user_id:
+                UserRepository.delete_by_id(user_id)
+            return {"success": False, "message": f"Error al crear el usuario: {e}"}
+
+    @staticmethod
     def update_user_role(user_id: str, role: str) -> Dict:
-        if role not in ("admin", "operator", "client"):
+        if role not in ("admin", "operator", "mechanic", "client"):
             return {"success": False, "message": "Rol inválido"}
         try:
             if not UserRepository.find_by_id(user_id):

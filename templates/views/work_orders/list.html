@@ -17,9 +17,10 @@
     <div class="col-sm-3">
         <select name="status" class="form-select">
             <option value="">Todos los estados</option>
-            <option value="abierta" {{ 'selected' if filter_status == 'abierta' }}>Abierta</option>
-            <option value="en_proceso" {{ 'selected' if filter_status == 'en_proceso' }}>En Proceso</option>
-            <option value="cerrada" {{ 'selected' if filter_status == 'cerrada' }}>Cerrada</option>
+            <option value="ingresado" {{ 'selected' if filter_status == 'ingresado' }}>Ingresado</option>
+            <option value="revision" {{ 'selected' if filter_status == 'revision' }}>En Revisión</option>
+            <option value="resultado" {{ 'selected' if filter_status == 'resultado' }}>Resultado del Chequeo</option>
+            <option value="finalizado" {{ 'selected' if filter_status == 'finalizado' }}>Finalizado</option>
         </select>
     </div>
     <div class="col-sm-4 d-flex gap-2">
@@ -56,12 +57,14 @@
                         <td><span class="badge bg-dark">{{ o.vehicle_plate }}</span></td>
                         <td class="text-muted small">{{ o.client_name }}</td>
                         <td class="text-center">
-                            {% if o.status == 'abierta' %}
-                                <span class="badge bg-primary">Abierta</span>
-                            {% elif o.status == 'en_proceso' %}
-                                <span class="badge bg-warning text-dark">En Proceso</span>
+                            {% if o.status in ('ingresado', 'abierta') %}
+                                <span class="badge bg-primary">Ingresado</span>
+                            {% elif o.status == 'revision' or o.status == 'en_proceso' %}
+                                <span class="badge bg-warning text-dark">En Revisión</span>
+                            {% elif o.status == 'resultado' %}
+                                <span class="badge bg-info text-dark">Resultado</span>
                             {% else %}
-                                <span class="badge bg-success">Cerrada</span>
+                                <span class="badge bg-success">Finalizado</span>
                             {% endif %}
                         </td>
                         <td class="text-end fw-bold">${{ "%.2f" | format(o.total) }}</td>
@@ -73,7 +76,7 @@
                                class="btn btn-sm btn-outline-secondary me-1" title="Ver detalle">
                                 <i class="bi bi-eye"></i>
                             </a>
-                            {% if o.status != 'cerrada' %}
+                            {% if not o.is_closed %}
                             <a href="{{ url_for('work_orders.edit', order_id=o.id) }}"
                                class="btn btn-sm btn-outline-primary" title="Editar">
                                 <i class="bi bi-pencil"></i>
