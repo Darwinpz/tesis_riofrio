@@ -3,11 +3,17 @@
 {% block body %}
 <div class="row justify-content-center">
     <div class="col-md-7 col-lg-6">
-        <div class="d-flex align-items-center mb-4 gap-2">
-            <a href="{{ url_for('stock.index') }}" class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-arrow-left"></i>
-            </a>
-            <h4 class="mb-0"><i class="bi bi-box-arrow-in-down-right text-success me-2"></i>Registrar Entrada de Stock</h4>
+        <div class="mc-page-header mb-4">
+            <div class="d-flex align-items-center gap-3">
+                <a href="{{ url_for('stock.index') }}" class="btn btn-outline-light btn-sm">
+                    <i class="bi bi-arrow-left"></i>
+                </a>
+                <div class="mc-icon-box"><i class="bi bi-box-arrow-in-down-right text-white fs-5"></i></div>
+                <div>
+                    <h4 class="mb-0 fw-bold">Registrar Entrada de Stock</h4>
+                    <small>Compra, devolución o ajuste de inventario</small>
+                </div>
+            </div>
         </div>
         <div class="card shadow-sm border-0">
             <div class="card-body">

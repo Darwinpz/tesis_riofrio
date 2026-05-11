@@ -1,11 +1,17 @@
 {% extends 'base.html' %}
 {% block title %}Nueva Orden de Trabajo{% endblock %}
 {% block body %}
-<div class="d-flex align-items-center mb-4 gap-2">
-    <a href="{{ url_for('work_orders.index') }}" class="btn btn-outline-secondary btn-sm">
-        <i class="bi bi-arrow-left"></i>
-    </a>
-    <h4 class="mb-0">Nueva Orden de Trabajo</h4>
+<div class="mc-page-header mb-4">
+    <div class="d-flex align-items-center gap-3">
+        <a href="{{ url_for('work_orders.index') }}" class="btn btn-outline-light btn-sm">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+        <div class="mc-icon-box"><i class="bi bi-clipboard-plus text-white fs-5"></i></div>
+        <div>
+            <h4 class="mb-0 fw-bold">Nueva Orden de Trabajo</h4>
+            <small>Registra el ingreso del vehículo al taller</small>
+        </div>
+    </div>
 </div>
 
 <form method="POST" action="{{ url_for('work_orders.create') }}" id="orderForm"

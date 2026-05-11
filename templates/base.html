@@ -7,8 +7,126 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     {% block extra_head %}{% endblock %}
+    <style>
+        :root {
+            --mc-dark:    #1a1a2e;
+            --mc-accent:  #0f3460;
+            --mc-grad:    linear-gradient(160deg, #1a1a2e 0%, #0f3460 100%);
+            --mc-radius:  14px;
+            --mc-radius-sm: 8px;
+        }
+
+        /* ── Fondo global ────────────────────────────────────── */
+        body { background-color: #f0f2f8; }
+
+        /* ── Cards ───────────────────────────────────────────── */
+        .card {
+            border-radius: var(--mc-radius) !important;
+            border: 0 !important;
+            box-shadow: 0 2px 12px rgba(15,52,96,.07) !important;
+        }
+        .card-footer {
+            border-radius: 0 0 var(--mc-radius) var(--mc-radius) !important;
+        }
+
+        /* ── Cabecera de página ──────────────────────────────── */
+        .mc-page-header {
+            background: var(--mc-grad);
+            border-radius: var(--mc-radius);
+            color: #fff;
+            padding: 1.2rem 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .mc-page-header small { opacity: .75; }
+        .mc-icon-box {
+            width: 46px; height: 46px; flex-shrink: 0;
+            border-radius: 10px;
+            background: rgba(255,255,255,.15);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .mc-page-header .btn-outline-light {
+            border-color: rgba(255,255,255,.45);
+            color: #fff;
+        }
+        .mc-page-header .btn-outline-light:hover {
+            background: rgba(255,255,255,.2);
+        }
+        .mc-page-header .btn-light {
+            background: rgba(255,255,255,.15);
+            border-color: rgba(255,255,255,.35);
+            color: #fff;
+            font-weight: 600;
+        }
+        .mc-page-header .btn-light:hover {
+            background: rgba(255,255,255,.28);
+        }
+
+        /* ── Sección de filtros ──────────────────────────────── */
+        .mc-filters {
+            background: #fff;
+            border-radius: var(--mc-radius-sm);
+            padding: 1rem 1.25rem;
+            box-shadow: 0 1px 6px rgba(15,52,96,.06);
+            margin-bottom: 1.25rem;
+        }
+
+        /* ── Encabezados de tabla ────────────────────────────── */
+        thead.thead-mc th,
+        .table thead th {
+            background: var(--mc-accent) !important;
+            color: #fff !important;
+            border: none !important;
+            font-size: .75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            padding-top: .75rem;
+            padding-bottom: .75rem;
+        }
+        .table-dark th {
+            background: var(--mc-accent) !important;
+        }
+        .table tbody tr:hover { background-color: #f6f8fd !important; }
+
+        /* ── Paginación ──────────────────────────────────────── */
+        .page-link { color: var(--mc-accent); border-radius: 6px !important; margin: 0 1px; }
+        .page-item.active .page-link {
+            background: var(--mc-accent);
+            border-color: var(--mc-accent);
+        }
+        .page-link:hover { color: var(--mc-dark); }
+
+        /* ── Badges de estado ────────────────────────────────── */
+        .badge { letter-spacing: .3px; }
+
+        /* ── Inputs de formulario ────────────────────────────── */
+        .form-control:focus, .form-select:focus {
+            border-color: var(--mc-accent);
+            box-shadow: 0 0 0 .2rem rgba(15,52,96,.15);
+        }
+        .input-group-text { background-color: #f8f9fa; }
+
+        /* ── Botones oscuros ─────────────────────────────────── */
+        .btn-dark {
+            background: var(--mc-dark);
+            border-color: var(--mc-dark);
+        }
+        .btn-dark:hover {
+            background: var(--mc-accent);
+            border-color: var(--mc-accent);
+        }
+
+        /* ── Alerts flash ────────────────────────────────────── */
+        .alert { border-radius: var(--mc-radius-sm) !important; border: 0 !important; }
+
+        /* ── Scrollbar sutil ─────────────────────────────────── */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f0f2f8; }
+        ::-webkit-scrollbar-thumb { background: #c5cfe8; border-radius: 6px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--mc-accent); }
+    </style>
 </head>
-<body class="bg-light">
+<body>
 
     {% include '/views/navbar.html' %}
 

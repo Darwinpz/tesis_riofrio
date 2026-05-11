@@ -1,13 +1,21 @@
 {% extends 'base.html' %}
 {% block title %}Modelos{% endblock %}
 {% block body %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h3 class="mb-0"><i class="bi bi-car-front me-2"></i>Modelos de Vehículo</h3>
-    {% if current_user.role == 'admin' %}
-    <a href="{{ url_for('vehicle_models.create') }}" class="btn btn-dark">
-        <i class="bi bi-plus-lg me-1"></i>Nuevo Modelo
-    </a>
-    {% endif %}
+<div class="mc-page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center gap-3">
+            <div class="mc-icon-box"><i class="bi bi-car-front text-white fs-5"></i></div>
+            <div>
+                <h4 class="mb-0 fw-bold">Modelos de Vehículo</h4>
+                <small>Modelos asociados a cada marca</small>
+            </div>
+        </div>
+        {% if current_user.role == 'admin' %}
+        <a href="{{ url_for('vehicle_models.create') }}" class="btn btn-light btn-sm">
+            <i class="bi bi-plus-lg me-1"></i>Nuevo Modelo
+        </a>
+        {% endif %}
+    </div>
 </div>
 
 <div class="card shadow-sm border-0">

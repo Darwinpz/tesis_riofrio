@@ -1,15 +1,24 @@
 {% extends 'base.html' %}
 {% block title %}Órdenes de Trabajo{% endblock %}
 {% block body %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h3 class="mb-0"><i class="bi bi-clipboard-check me-2"></i>Órdenes de Trabajo</h3>
-    <a href="{{ url_for('work_orders.create') }}" class="btn btn-dark">
-        <i class="bi bi-plus-lg me-1"></i>Nueva Orden
-    </a>
+<div class="mc-page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center gap-3">
+            <div class="mc-icon-box"><i class="bi bi-clipboard-check text-white fs-5"></i></div>
+            <div>
+                <h4 class="mb-0 fw-bold">Órdenes de Trabajo</h4>
+                <small>Gestión y seguimiento de órdenes</small>
+            </div>
+        </div>
+        <a href="{{ url_for('work_orders.create') }}" class="btn btn-light btn-sm">
+            <i class="bi bi-plus-lg me-1"></i>Nueva Orden
+        </a>
+    </div>
 </div>
 
 <!-- Filtros -->
-<form method="GET" class="row g-2 mb-4">
+<div class="mc-filters">
+<form method="GET" class="row g-2">
     <div class="col-sm-5">
         <input type="text" name="search" class="form-control" placeholder="Buscar por N° orden o placa..."
                value="{{ filter_search }}">
@@ -32,6 +41,7 @@
         </a>
     </div>
 </form>
+</div>
 
 <div class="card shadow-sm border-0">
     <div class="card-body p-0">

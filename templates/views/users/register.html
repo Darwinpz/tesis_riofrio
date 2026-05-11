@@ -1,54 +1,195 @@
 {% extends 'base.html' %}
+{% block title %}Crear Cuenta{% endblock %}
 
 {% block body %}
+<div class="row justify-content-center align-items-start py-3">
+    <div class="col-12 col-md-10 col-lg-8 col-xl-7">
+        <div class="card border-0 shadow-lg overflow-hidden" style="border-radius:16px;">
 
+            <!-- Cabecera de la tarjeta -->
+            <div class="d-flex align-items-center gap-3 p-4 text-white"
+                 style="background:linear-gradient(160deg,#1a1a2e 0%,#0f3460 100%);">
+                <div class="rounded-circle bg-white bg-opacity-10 d-flex align-items-center justify-content-center"
+                     style="width:52px;height:52px;flex-shrink:0;">
+                    <i class="bi bi-person-plus fs-4 text-white"></i>
+                </div>
+                <div>
+                    <h4 class="fw-bold mb-0">Crear cuenta</h4>
+                    <p class="small opacity-75 mb-0">Completa el formulario para unirte a Mechita</p>
+                </div>
+            </div>
 
-<div class="row justify-content-center">
-    <div class="col-md-6 col-lg-5">
-        <div class="card shadow-sm">
-            <div class="card-body">
-                <h4 class="card-title text-center mb-4">Registro</h4>
+            <!-- Formulario -->
+            <div class="card-body bg-white p-4 p-md-5">
+                <form method="POST" action="{{ url_for('users.register') }}" novalidate id="registerForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-                <form method="POST" action="{{ url_for('users.register') }}">
-
-                    <input type="hidden" name="csrf_token" value="{{csrf_token()}}">
-
+                    <!-- Identificación -->
                     <div class="mb-3">
-                        <label for="identification" class="form-label">Identification</label>
-                        <input type="text" class="form-control" id="identification" name="identification" value="{{ identification | default('') }}" required>
+                        <label for="identification" class="form-label fw-semibold">
+                            Cédula / Identificación
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-end-0">
+                                <i class="bi bi-card-text text-muted"></i>
+                            </span>
+                            <input type="text" class="form-control border-start-0 ps-0"
+                                   id="identification" name="identification"
+                                   value="{{ identification | default('') }}"
+                                   placeholder="Ej: 1234567890"
+                                   required>
+                        </div>
                     </div>
 
-                    <div class="mb-3">
-                        <label for="first_name" class="form-label">First Name</label>
-                        <input type="text" class="form-control" id="first_name" name="first_name" value="{{ first_name | default('') }}" required>
+                    <!-- Nombre y Apellido -->
+                    <div class="row g-3 mb-3">
+                        <div class="col-sm-6">
+                            <label for="first_name" class="form-label fw-semibold">Nombre</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0">
+                                    <i class="bi bi-person text-muted"></i>
+                                </span>
+                                <input type="text" class="form-control border-start-0 ps-0"
+                                       id="first_name" name="first_name"
+                                       value="{{ first_name | default('') }}"
+                                       placeholder="Tu nombre"
+                                       required>
+                            </div>
+                        </div>
+                        <div class="col-sm-6">
+                            <label for="last_name" class="form-label fw-semibold">Apellido</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0">
+                                    <i class="bi bi-person text-muted"></i>
+                                </span>
+                                <input type="text" class="form-control border-start-0 ps-0"
+                                       id="last_name" name="last_name"
+                                       value="{{ last_name | default('') }}"
+                                       placeholder="Tu apellido"
+                                       required>
+                            </div>
+                        </div>
                     </div>
 
+                    <!-- Correo electrónico -->
                     <div class="mb-3">
-                        <label for="last_name" class="form-label">Last Name</label>
-                        <input type="text" class="form-control" id="last_name" name="last_name" value="{{ last_name | default('') }}" required>
+                        <label for="email" class="form-label fw-semibold">Correo electrónico</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-end-0">
+                                <i class="bi bi-envelope text-muted"></i>
+                            </span>
+                            <input type="email" class="form-control border-start-0 ps-0"
+                                   id="email" name="email"
+                                   value="{{ email | default('') }}"
+                                   placeholder="tucorreo@ejemplo.com"
+                                   required>
+                        </div>
                     </div>
 
-                    <div class="mb-3">
-                        <label for="email" class="form-label">Email</label>
-                        <input type="email" class="form-control" id="email" name="email" value="{{ email | default('') }}" required>
+                    <!-- Contraseña -->
+                    <div class="row g-3 mb-4">
+                        <div class="col-sm-6">
+                            <label for="password" class="form-label fw-semibold">Contraseña</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0">
+                                    <i class="bi bi-lock text-muted"></i>
+                                </span>
+                                <input type="password" class="form-control border-start-0 border-end-0 ps-0"
+                                       id="password" name="password"
+                                       placeholder="Mínimo 6 caracteres"
+                                       minlength="6"
+                                       required>
+                                <button class="btn btn-light border" type="button"
+                                        onclick="togglePassword('password', this)"
+                                        tabindex="-1" title="Mostrar/ocultar">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-sm-6">
+                            <label for="confirm_password" class="form-label fw-semibold">Confirmar contraseña</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0">
+                                    <i class="bi bi-lock-fill text-muted"></i>
+                                </span>
+                                <input type="password" class="form-control border-start-0 border-end-0 ps-0"
+                                       id="confirm_password"
+                                       placeholder="Repite la contraseña"
+                                       required>
+                                <button class="btn btn-light border" type="button"
+                                        onclick="togglePassword('confirm_password', this)"
+                                        tabindex="-1" title="Mostrar/ocultar">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
+                            <div id="pwdMismatch" class="text-danger small mt-1 d-none">
+                                <i class="bi bi-exclamation-circle me-1"></i>Las contraseñas no coinciden.
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="mb-3">
-                        <label for="password" class="form-label">Contraseña</label>
-                        <input type="password" class="form-control" id="password" name="password" value="{{ email | default('') }}" required>
-                    </div>
-
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-primary">
-                            Registrarse
+                    <div class="d-grid mb-3">
+                        <button type="submit" class="btn btn-dark btn-lg fw-semibold" id="submitBtn">
+                            <i class="bi bi-person-check me-2"></i>Crear Cuenta
                         </button>
                     </div>
 
+                    <hr class="text-muted">
+
+                    <p class="text-center small text-muted mb-0">
+                        ¿Ya tienes cuenta?
+                        <a href="{{ url_for('users.login') }}" class="fw-semibold text-dark">
+                            Inicia sesión aquí
+                        </a>
+                    </p>
                 </form>
             </div>
+
         </div>
     </div>
 </div>
+{% endblock %}
 
+{% block extra_scripts %}
+<script>
+function togglePassword(fieldId, btn) {
+    const input = document.getElementById(fieldId);
+    const icon = btn.querySelector('i');
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.className = 'bi bi-eye-slash';
+    } else {
+        input.type = 'password';
+        icon.className = 'bi bi-eye';
+    }
+}
 
+(function () {
+    const pwd = document.getElementById('password');
+    const confirm = document.getElementById('confirm_password');
+    const mismatch = document.getElementById('pwdMismatch');
+    const form = document.getElementById('registerForm');
+
+    function checkMatch() {
+        if (confirm.value && pwd.value !== confirm.value) {
+            mismatch.classList.remove('d-none');
+            confirm.classList.add('is-invalid');
+        } else {
+            mismatch.classList.add('d-none');
+            confirm.classList.remove('is-invalid');
+        }
+    }
+
+    confirm.addEventListener('input', checkMatch);
+    pwd.addEventListener('input', checkMatch);
+
+    form.addEventListener('submit', function (e) {
+        if (pwd.value !== confirm.value) {
+            e.preventDefault();
+            checkMatch();
+            confirm.focus();
+        }
+    });
+})();
+</script>
 {% endblock %}

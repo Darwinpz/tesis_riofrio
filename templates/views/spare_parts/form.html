@@ -1,11 +1,17 @@
 {% extends 'base.html' %}
 {% block title %}{{ 'Nuevo Repuesto' if action == 'create' else 'Editar Repuesto' }}{% endblock %}
 {% block body %}
-<div class="d-flex align-items-center mb-4 gap-2">
-    <a href="{{ url_for('spare_parts.index') }}" class="btn btn-outline-secondary btn-sm">
-        <i class="bi bi-arrow-left"></i>
-    </a>
-    <h4 class="mb-0">{{ 'Nuevo Repuesto' if action == 'create' else 'Editar Repuesto' }}</h4>
+<div class="mc-page-header mb-4">
+    <div class="d-flex align-items-center gap-3">
+        <a href="{{ url_for('spare_parts.index') }}" class="btn btn-outline-light btn-sm">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+        <div class="mc-icon-box"><i class="bi bi-gear text-white fs-5"></i></div>
+        <div>
+            <h4 class="mb-0 fw-bold">{{ 'Nuevo Repuesto' if action == 'create' else 'Editar Repuesto' }}</h4>
+            <small>{{ 'Registra un nuevo repuesto en el inventario' if action == 'create' else 'Actualiza los datos del repuesto' }}</small>
+        </div>
+    </div>
 </div>
 
 <form method="POST"
