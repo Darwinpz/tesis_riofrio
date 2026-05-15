@@ -97,7 +97,13 @@
                         <td class="text-muted small">{{ m.motive | replace('_', ' ') | title }}</td>
                         <td class="text-muted small">{{ m.note or '—' }}</td>
                         <td class="text-center">
-                            {% if m.attachment_path %}
+                            {% if m.movement_type == 'salida' %}
+                                <a href="{{ url_for('stock.comprobante', movement_id=m.id) }}" target="_blank"
+                                   class="btn btn-outline-danger btn-sm py-0"
+                                   title="Ver / imprimir comprobante de salida">
+                                    <i class="bi bi-file-earmark-pdf"></i>
+                                </a>
+                            {% elif m.attachment_path %}
                                 <a href="/{{ m.attachment_path }}" target="_blank"
                                    class="btn btn-outline-secondary btn-sm py-0"
                                    title="Ver comprobante">
@@ -133,4 +139,12 @@
     </div>
     {% endif %}
 </div>
+{% endblock %}
+
+{% block extra_scripts %}
+{% if open_comprobante %}
+<script>
+window.open("{{ url_for('stock.comprobante', movement_id=open_comprobante) }}", "_blank");
+</script>
+{% endif %}
 {% endblock %}

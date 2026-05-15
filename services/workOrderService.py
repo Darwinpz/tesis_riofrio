@@ -415,6 +415,8 @@ class WorkOrderService:
                 )
                 if not can_delete:
                     return {"success": False, "message": "No tienes permiso para eliminar fotos de trabajo"}
+                if user_role == "mechanic" and order.canonical_status in ("pago_pendiente", "entregado", "cancelado"):
+                    return {"success": False, "message": "No puedes modificar evidencias cuando el ingreso está en Pago Pendiente, Entregado o Cancelado"}
                 photos = list(order.work_photos)
                 if photo_path not in photos:
                     return {"success": False, "message": "Foto no encontrada"}

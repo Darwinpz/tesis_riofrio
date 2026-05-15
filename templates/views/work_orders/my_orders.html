@@ -48,6 +48,8 @@
                                 <span class="badge badge-orange">En Reparación</span>
                             {% elif s == 'pago_pendiente' %}
                                 <span class="badge badge-purple">Pago Pendiente</span>
+                            {% elif s == 'cancelado' %}
+                                <span class="badge bg-dark"><i class="bi bi-x-circle me-1"></i>Cancelado</span>
                             {% else %}
                                 <span class="badge bg-success">Entregado</span>
                             {% endif %}

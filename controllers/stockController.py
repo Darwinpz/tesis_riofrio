@@ -25,6 +25,7 @@ def index():
     movement_type = request.args.get('movement_type', '').strip() or None
     start_date = request.args.get('start_date', '').strip() or None
     end_date = request.args.get('end_date', '').strip() or None
+    open_comprobante = request.args.get('open_comprobante', '').strip()
 
     result = StockService.get_paginated(
         page=page, per_page=15,
@@ -49,7 +50,8 @@ def index():
                            filter_part=spare_part_id or '',
                            filter_type=movement_type or '',
                            filter_start=start_date or '',
-                           filter_end=end_date or '')
+                           filter_end=end_date or '',
+                           open_comprobante=open_comprobante)
 
 
 @stock_bp.route('/report', methods=['GET'])
@@ -144,9 +146,7 @@ def exit():
     if result["success"]:
         flash(result["message"], 'success')
         movement_id = result.get("movement_id")
-        if movement_id:
-            return redirect(url_for('stock.comprobante', movement_id=movement_id))
-        return redirect(url_for('stock.index'))
+        return redirect(url_for('stock.index', open_comprobante=movement_id or ''))
     flash(result["message"], 'danger')
     return render_template('/views/stock/exit.html', parts=parts, preselect=spare_part_id,
                            clients=clients, suppliers=suppliers)

@@ -39,6 +39,7 @@
             <option value="en_reparacion"  {{ 'selected' if filter_status == 'en_reparacion' }}>En Reparación</option>
             <option value="pago_pendiente" {{ 'selected' if filter_status == 'pago_pendiente' }}>Pago Pendiente</option>
             <option value="entregado"      {{ 'selected' if filter_status == 'entregado' }}>Entregado</option>
+            <option value="cancelado"      {{ 'selected' if filter_status == 'cancelado' }}>Cancelado</option>
         </select>
     </div>
     <div class="col-sm-4 d-flex gap-2">
@@ -97,6 +98,8 @@
                                 <span class="badge badge-orange">En Reparación</span>
                             {% elif s == 'pago_pendiente' %}
                                 <span class="badge badge-purple">Pago Pendiente</span>
+                            {% elif s == 'cancelado' %}
+                                <span class="badge bg-dark"><i class="bi bi-x-circle me-1"></i>Cancelado</span>
                             {% else %}
                                 <span class="badge bg-success">Entregado</span>
                             {% endif %}

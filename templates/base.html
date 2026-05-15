@@ -165,6 +165,13 @@
         }
         .mc-tl-step.done .mc-tl-lbl { color: var(--mc-dark); font-weight: 600; }
         .mc-tl-step.active .mc-tl-lbl { color: var(--mc-accent); font-weight: 700; }
+        .mc-tl-step.cancelled::before { background: var(--mc-accent); }
+        .mc-tl-step.cancelled .mc-tl-dot {
+            background: #dc3545; border-color: #dc3545; color: #fff;
+        }
+        .mc-tl-step.cancelled .mc-tl-lbl { color: #dc3545; font-weight: 700; }
+        .mc-tl-step.disabled .mc-tl-dot { opacity: .3; }
+        .mc-tl-step.disabled .mc-tl-lbl { opacity: .3; }
 
         /* ── Searchable select (mc-ss) ───────────────────────── */
         .mc-ss-wrapper { position: relative; }

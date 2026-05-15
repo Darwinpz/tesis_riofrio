@@ -50,8 +50,10 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Placa <span class="text-danger">*</span></label>
-                            <input type="text" name="vehicle_plate" class="form-control" required
-                                   placeholder="Ej: ABC-1234" style="text-transform:uppercase;">
+                            <input type="text" name="vehicle_plate" id="vehiclePlate" class="form-control" required
+                                   placeholder="Ej: ABC-1234" maxlength="8"
+                                   style="text-transform:uppercase;">
+                            <div class="invalid-feedback">Formato inválido. Debe ser 3 letras y 4 números (Ej: ABC-1234).</div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Año</label>
@@ -156,13 +158,37 @@ initMcSelect({
     valueFn: d => d.id
 });
 
+// Plate: auto-format and validate (3 letters + optional dash + 4 digits)
+const plateInput = document.getElementById('vehiclePlate');
+const PLATE_RE = /^[A-Z]{3}-?\d{4}$/;
+
+plateInput.addEventListener('input', function() {
+    let v = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (v.length > 3) v = v.slice(0, 3) + '-' + v.slice(3, 7);
+    this.value = v;
+    this.classList.remove('is-invalid');
+});
+
+function validatePlate() {
+    const ok = PLATE_RE.test(plateInput.value.trim());
+    plateInput.classList.toggle('is-invalid', !ok);
+    return ok;
+}
+plateInput.addEventListener('blur', validatePlate);
+
 // Validate client on submit
 document.getElementById('orderForm').addEventListener('submit', function(e) {
+    let ok = true;
     if (!document.getElementById('clientId').value) {
         e.preventDefault();
         const inp = document.getElementById('clientSearch');
         inp.classList.add('is-invalid');
         inp.focus();
+        ok = false;
+    }
+    if (!validatePlate()) {
+        e.preventDefault();
+        if (ok) plateInput.focus();
     }
 });
 document.getElementById('clientSearch').addEventListener('input', function() {

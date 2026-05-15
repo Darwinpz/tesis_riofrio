@@ -33,7 +33,7 @@
             <div>
                 <h4 class="mb-0 fw-bold text-white">
                     Ingreso <code class="text-white">{{ order.number }}</code>
-                    &nbsp;{{ status_badge(order.status) }}
+                    &nbsp;{% if order.canonical_status == 'cancelado' %}<span class="badge bg-dark"><i class="bi bi-x-circle me-1"></i>Cancelado</span>{% else %}{{ status_badge(order.status) }}{% endif %}
                 </h4>
                 <small class="opacity-75">
                     {{ order.created_at.strftime('%d/%m/%Y %H:%M') if order.created_at else '' }}
@@ -80,19 +80,32 @@
             'entregado':      'bi-check-circle-fill'
         } %}
         {% set current_idx = order.status_index %}
+        {% set is_cancelled = order.canonical_status == 'cancelado' %}
         <div class="mc-timeline">
             {% for step in ['recepcion','diagnostico','presupuesto','aprobado','en_reparacion','pago_pendiente','entregado'] %}
             {% set idx = loop.index0 %}
-            {% set state = 'done' if idx < current_idx else ('active' if idx == current_idx else '') %}
+            {% if is_cancelled %}
+                {% set state = 'done' if idx < current_idx else ('cancelled' if idx == current_idx else 'disabled') %}
+            {% else %}
+                {% set state = 'done' if idx < current_idx else ('active' if idx == current_idx else '') %}
+            {% endif %}
             <div class="mc-tl-step {{ state }}">
                 <div class="mc-tl-dot">
                     {% if state == 'done' %}<i class="bi bi-check-lg"></i>
+                    {% elif state == 'cancelled' %}<i class="bi bi-x-lg"></i>
                     {% else %}<i class="bi {{ tl_icons[step] }}"></i>{% endif %}
                 </div>
                 <div class="mc-tl-lbl">{{ tl_labels[step] }}</div>
             </div>
             {% endfor %}
         </div>
+        {% if is_cancelled %}
+        <div class="text-center mt-2">
+            <span class="badge bg-dark px-3 py-2" style="font-size:.8rem;">
+                <i class="bi bi-x-circle me-1"></i>Ingreso Cancelado
+            </span>
+        </div>
+        {% endif %}
     </div>
 </div>
 
@@ -452,7 +465,7 @@
                             <img src="/{{ photo }}" class="img-fluid rounded"
                                  style="height:80px;width:100%;object-fit:cover;" alt="">
                         </a>
-                        {% if current_user and (current_user.role in ('admin', 'operator') or (current_user.role == 'mechanic' and order.mechanic_id == current_user.id)) %}
+                        {% if current_user and (current_user.role in ('admin', 'operator') or (current_user.role == 'mechanic' and order.mechanic_id == current_user.id and order.canonical_status in ('diagnostico', 'en_reparacion'))) %}
                         <form method="POST" action="{{ url_for('work_orders.delete_photo', order_id=order.id) }}"
                               class="d-inline" onsubmit="return confirm('¿Eliminar esta foto?')">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
