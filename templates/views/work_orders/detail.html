@@ -14,39 +14,46 @@
 {% endmacro %}
 
 {% block body %}
-<!-- Header -->
-<div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
-    <div class="d-flex align-items-center gap-2">
-        {% if current_user and current_user.role in ('admin', 'operator') %}
-        <a href="{{ url_for('work_orders.index') }}" class="btn btn-outline-secondary btn-sm">
-            <i class="bi bi-arrow-left"></i>
-        </a>
-        {% else %}
-        <a href="{{ url_for('work_orders.my_orders') }}" class="btn btn-outline-secondary btn-sm">
-            <i class="bi bi-arrow-left"></i>
-        </a>
-        {% endif %}
-        <div>
-            <h4 class="mb-0">Ingreso <code>{{ order.number }}</code></h4>
-            <small class="text-muted">
-                {{ order.created_at.strftime('%d/%m/%Y %H:%M') if order.created_at else '' }}
-            </small>
+
+<!-- Page header -->
+<div class="mc-page-header mb-4">
+    <div class="d-flex align-items-center justify-content-between gap-3 flex-wrap">
+        <div class="d-flex align-items-center gap-3">
+            {% if current_user and current_user.role in ('admin', 'operator') %}
+            <a href="{{ url_for('work_orders.index') }}" class="btn btn-outline-light btn-sm">
+                <i class="bi bi-arrow-left"></i>
+            </a>
+            {% else %}
+            <a href="{{ url_for('work_orders.my_orders') }}" class="btn btn-outline-light btn-sm">
+                <i class="bi bi-arrow-left"></i>
+            </a>
+            {% endif %}
+            <div class="mc-icon-box"><i class="bi bi-clipboard-check text-white fs-5"></i></div>
+            <div>
+                <h4 class="mb-0 fw-bold text-white">
+                    Ingreso <code class="text-white">{{ order.number }}</code>
+                    &nbsp;{{ status_badge(order.status) }}
+                </h4>
+                <small class="opacity-75">
+                    {{ order.created_at.strftime('%d/%m/%Y %H:%M') if order.created_at else '' }}
+                </small>
+            </div>
         </div>
-    </div>
-    <div class="d-flex gap-2 flex-wrap">
-        <a href="{{ url_for('work_orders.pdf', order_id=order.id) }}"
-           class="btn btn-outline-secondary btn-sm" target="_blank">
-            <i class="bi bi-file-pdf me-1"></i>Ficha Técnica
-        </a>
-        <a href="{{ url_for('work_orders.receipt', order_id=order.id) }}"
-           class="btn btn-outline-dark btn-sm" target="_blank">
-            <i class="bi bi-receipt me-1"></i>Comprobante
-        </a>
-        {% if can_edit %}
-        <a href="{{ url_for('work_orders.edit', order_id=order.id) }}" class="btn btn-outline-primary btn-sm">
-            <i class="bi bi-pencil me-1"></i>Editar
-        </a>
-        {% endif %}
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="{{ url_for('work_orders.pdf', order_id=order.id) }}"
+               class="btn btn-outline-light btn-sm" target="_blank">
+                <i class="bi bi-file-pdf me-1"></i>Ficha
+            </a>
+            <a href="{{ url_for('work_orders.receipt', order_id=order.id) }}"
+               class="btn btn-outline-light btn-sm" target="_blank">
+                <i class="bi bi-receipt me-1"></i>Comprobante
+            </a>
+            {% if can_edit %}
+            <a href="{{ url_for('work_orders.edit', order_id=order.id) }}" class="btn btn-light btn-sm">
+                <i class="bi bi-pencil me-1"></i>Editar
+            </a>
+            {% endif %}
+        </div>
     </div>
 </div>
 
@@ -90,19 +97,17 @@
 
 <!-- Action card -->
 {% if can_advance or can_revert or can_register_work %}
-<div class="card border-0 shadow-sm mb-4"
+<div class="card border-0 shadow-sm mb-3"
      style="border-left: 4px solid var(--mc-accent) !important; border-radius: var(--mc-radius) !important;">
-    <div class="card-body">
+    <div class="card-body py-3">
         <div class="d-flex align-items-center justify-content-between gap-3 flex-wrap">
             <div>
                 {% if can_register_work and can_advance %}
                 <h6 class="mb-1 fw-bold">Trabajo en curso</h6>
-                <p class="text-muted small mb-0">
-                    Actualiza el trabajo cuando necesites. Cuando estés listo, emite el presupuesto para continuar.
-                </p>
+                <p class="text-muted small mb-0">Actualiza el trabajo cuando necesites. Cuando estés listo, emite el presupuesto para continuar.</p>
                 {% elif can_register_work %}
-                <h6 class="mb-1 fw-bold">Registrar trabajo en este ingreso</h6>
-                <p class="text-muted small mb-0">Agrega repuestos utilizados, diagnóstico y evidencias fotográficas.</p>
+                <h6 class="mb-1 fw-bold">Registrar trabajo</h6>
+                <p class="text-muted small mb-0">Agrega repuestos, diagnóstico y evidencias del trabajo realizado.</p>
                 {% elif can_advance %}
                 {% if order.canonical_status == 'presupuesto' and current_user and current_user.role == 'client' %}
                 <h6 class="mb-1 fw-bold">Aprobar Presupuesto</h6>
@@ -150,9 +155,9 @@
 
 <!-- Payment proof: client upload at pago_pendiente -->
 {% if order.canonical_status == 'pago_pendiente' and current_user and current_user.role == 'client' %}
-<div class="card border-0 shadow-sm mb-4"
+<div class="card border-0 shadow-sm mb-3"
      style="border-left: 4px solid #6f42c1 !important; border-radius: var(--mc-radius) !important;">
-    <div class="card-body">
+    <div class="card-body py-3">
         {% if order.payment_proof_path %}
         <div class="d-flex align-items-center gap-3">
             <i class="bi bi-check-circle-fill text-success fs-4"></i>
@@ -160,8 +165,9 @@
                 <h6 class="mb-0 fw-bold">Comprobante enviado</h6>
                 <small class="text-muted">El taller revisará tu comprobante y confirmará la entrega.</small>
             </div>
-            <a href="/{{ order.payment_proof_path }}" target="_blank" class="btn btn-sm btn-outline-secondary ms-auto">
-                <i class="bi bi-eye me-1"></i>Ver comprobante
+            <a href="/{{ order.payment_proof_path }}" target="_blank"
+               class="btn btn-sm btn-outline-secondary ms-auto">
+                <i class="bi bi-eye me-1"></i>Ver
             </a>
         </div>
         {% else %}
@@ -171,9 +177,10 @@
               enctype="multipart/form-data">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="d-flex gap-2 align-items-center flex-wrap">
-                <input type="file" name="payment_proof" class="form-control form-control-sm" style="max-width:320px;"
-                       accept=".jpg,.jpeg,.png,.gif,.webp,.pdf" required>
-                <button type="submit" class="btn btn-sm btn-purple" style="background:#6f42c1;color:white;border:none;">
+                <input type="file" name="payment_proof" class="form-control form-control-sm"
+                       style="max-width:300px;" accept=".jpg,.jpeg,.png,.gif,.webp,.pdf" required>
+                <button type="submit" class="btn btn-sm"
+                        style="background:#6f42c1;color:white;border:none;">
                     <i class="bi bi-upload me-1"></i>Enviar comprobante
                 </button>
             </div>
@@ -185,7 +192,7 @@
 
 <!-- Payment proof: admin/operator view at pago_pendiente -->
 {% if order.canonical_status == 'pago_pendiente' and current_user and current_user.role in ('admin', 'operator') %}
-<div class="alert {% if order.payment_proof_path %}alert-success{% else %}alert-warning{% endif %} d-flex align-items-center gap-2 mb-4 small">
+<div class="alert {% if order.payment_proof_path %}alert-success{% else %}alert-warning{% endif %} d-flex align-items-center gap-2 mb-3 small">
     {% if order.payment_proof_path %}
     <i class="bi bi-check-circle-fill"></i>
     <span>El cliente subió un comprobante de pago.</span>
@@ -199,97 +206,72 @@
 </div>
 {% endif %}
 
+<!-- ── MAIN CONTENT ──────────────────────────────────────────── -->
 <div class="row g-4">
-    <!-- Left: vehicle + client + notes + photos -->
-    <div class="col-lg-5">
+
+    <!-- LEFT: info + history -->
+    <div class="col-lg-4">
+
+        <!-- Info card -->
         <div class="card shadow-sm border-0 mb-3">
-            <div class="card-header bg-dark text-white">Datos del Vehículo</div>
-            <div class="card-body">
-                <dl class="row mb-0 small">
-                    <dt class="col-5 text-muted">Marca</dt>
-                    <dd class="col-7 fw-medium">{{ order.vehicle_brand }}</dd>
-                    <dt class="col-5 text-muted">Modelo</dt>
-                    <dd class="col-7">{{ order.vehicle_model }}</dd>
-                    {% if order.vehicle_year %}
-                    <dt class="col-5 text-muted">Año</dt>
-                    <dd class="col-7">{{ order.vehicle_year }}</dd>
-                    {% endif %}
-                    <dt class="col-5 text-muted">Placa</dt>
-                    <dd class="col-7"><span class="badge bg-dark">{{ order.vehicle_plate }}</span></dd>
-                    <dt class="col-5 text-muted">Estado</dt>
-                    <dd class="col-7">{{ status_badge(order.status) }}</dd>
-                </dl>
+            <div class="card-header bg-dark text-white small fw-medium">
+                <i class="bi bi-info-circle me-1"></i>Datos del Ingreso
             </div>
-        </div>
-
-        <div class="card shadow-sm border-0 mb-3">
-            <div class="card-header bg-dark text-white">Cliente y Mecánico</div>
-            <div class="card-body">
-                <dl class="row mb-0 small">
-                    <dt class="col-5 text-muted">Cliente</dt>
-                    <dd class="col-7 fw-medium">{{ order.client_name }}</dd>
-                    <dt class="col-5 text-muted">Mecánico</dt>
-                    <dd class="col-7">{{ order.mechanic_name }}</dd>
-                </dl>
-            </div>
-        </div>
-
-        {% if order.notes %}
-        <div class="card shadow-sm border-0 mb-3">
-            <div class="card-header bg-dark text-white">
-                <i class="bi bi-chat-text me-1"></i>Notas de Recepción
-            </div>
-            <div class="card-body">
-                <p class="mb-0 text-muted small">{{ order.notes }}</p>
-            </div>
-        </div>
-        {% endif %}
-
-        {% if order.work_notes %}
-        <div class="card shadow-sm border-0 mb-3"
-             style="border-left: 3px solid #198754 !important;">
-            <div class="card-header bg-success bg-opacity-10 text-success-emphasis">
-                <i class="bi bi-wrench me-1"></i>Diagnóstico / Trabajo realizado
-            </div>
-            <div class="card-body">
-                <p class="mb-0 small" style="white-space:pre-wrap;">{{ order.work_notes }}</p>
-            </div>
-        </div>
-        {% endif %}
-
-        {% if order.work_photos %}
-        <div class="card shadow-sm border-0 mb-3"
-             style="border-left: 3px solid #198754 !important;">
-            <div class="card-header bg-success bg-opacity-10 text-success-emphasis">
-                <i class="bi bi-camera me-1"></i>Evidencias del trabajo
-            </div>
-            <div class="card-body">
-                <div class="row g-2">
-                    {% for photo in order.work_photos %}
-                    <div class="col-6">
-                        <a href="/{{ photo }}" target="_blank">
-                            <img src="/{{ photo }}" class="img-fluid rounded border"
-                                 style="height:100px;width:100%;object-fit:cover;" alt="Evidencia">
-                        </a>
+            <div class="card-body py-3 px-3">
+                <div class="d-flex flex-column gap-2 small">
+                    <div class="d-flex align-items-center">
+                        <span class="text-muted me-2" style="min-width:28px"><i class="bi bi-car-front"></i></span>
+                        <span class="text-muted" style="min-width:80px">Vehículo</span>
+                        <span class="ms-auto fw-medium text-end">
+                            {{ order.vehicle_brand }} {{ order.vehicle_model }}
+                            {% if order.vehicle_year %}<span class="text-muted fw-normal">({{ order.vehicle_year }})</span>{% endif %}
+                        </span>
                     </div>
-                    {% endfor %}
+                    <div class="d-flex align-items-center">
+                        <span class="text-muted me-2" style="min-width:28px"><i class="bi bi-tag"></i></span>
+                        <span class="text-muted" style="min-width:80px">Placa</span>
+                        <span class="ms-auto"><span class="badge bg-dark">{{ order.vehicle_plate }}</span></span>
+                    </div>
+                    <hr class="my-1">
+                    <div class="d-flex align-items-center">
+                        <span class="text-muted me-2" style="min-width:28px"><i class="bi bi-person"></i></span>
+                        <span class="text-muted" style="min-width:80px">Cliente</span>
+                        <span class="ms-auto fw-medium text-end">{{ order.client_name }}</span>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        <span class="text-muted me-2" style="min-width:28px"><i class="bi bi-wrench"></i></span>
+                        <span class="text-muted" style="min-width:80px">Mecánico</span>
+                        <span class="ms-auto text-end">{{ order.mechanic_name or '—' }}</span>
+                    </div>
+                    <hr class="my-1">
+                    <div class="d-flex align-items-center">
+                        <span class="text-muted me-2" style="min-width:28px"><i class="bi bi-calendar3"></i></span>
+                        <span class="text-muted" style="min-width:80px">Ingresado</span>
+                        <span class="ms-auto text-end">{{ order.created_at.strftime('%d/%m/%Y') if order.created_at else '—' }}</span>
+                    </div>
                 </div>
             </div>
+            {% if order.notes %}
+            <div class="card-footer bg-light border-top small">
+                <p class="text-muted mb-1 fw-medium" style="font-size:.72rem;"><i class="bi bi-chat-text me-1"></i>Notas de recepción</p>
+                <p class="mb-0 text-dark">{{ order.notes }}</p>
+            </div>
+            {% endif %}
         </div>
-        {% endif %}
 
+        <!-- Reception photos (compact strip) -->
         {% if order.vehicle_photos %}
-        <div class="card shadow-sm border-0">
-            <div class="card-header bg-dark text-white">
+        <div class="card shadow-sm border-0 mb-3">
+            <div class="card-header bg-dark text-white small fw-medium">
                 <i class="bi bi-images me-1"></i>Fotos de Recepción
             </div>
-            <div class="card-body">
-                <div class="row g-2">
+            <div class="card-body p-2">
+                <div class="row g-1">
                     {% for photo in order.vehicle_photos %}
-                    <div class="col-6">
+                    <div class="col-{{ '3' if order.vehicle_photos | length > 3 else '4' }}">
                         <a href="/{{ photo }}" target="_blank">
-                            <img src="/{{ photo }}" class="img-fluid rounded border"
-                                 style="height:100px;width:100%;object-fit:cover;" alt="Foto vehículo">
+                            <img src="/{{ photo }}" class="img-fluid rounded"
+                                 style="height:58px;width:100%;object-fit:cover;" alt="">
                         </a>
                     </div>
                     {% endfor %}
@@ -297,39 +279,109 @@
             </div>
         </div>
         {% endif %}
-    </div>
 
-    <!-- Right: parts + totals -->
-    <div class="col-lg-7">
-        {% if order.canonical_status != 'recepcion' or order.parts %}
+        <!-- Status history (compact, scrollable) -->
+        {% if order.status_history %}
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-dark text-white small fw-medium d-flex align-items-center justify-content-between">
+                <span><i class="bi bi-clock-history me-1"></i>Historial</span>
+                <span class="badge bg-secondary">{{ order.status_history | length }}</span>
+            </div>
+            <div class="card-body p-0" style="max-height:300px;overflow-y:auto;">
+                {% for entry in order.status_history | reverse %}
+                <div class="d-flex gap-2 px-3 py-2 border-bottom small {% if not loop.last %}{% endif %}">
+                    <div class="mt-1 flex-shrink-0">
+                        {% if entry.action == 'advance' %}
+                        <i class="bi bi-arrow-right-circle-fill text-success"></i>
+                        {% else %}
+                        <i class="bi bi-arrow-left-circle-fill text-warning"></i>
+                        {% endif %}
+                    </div>
+                    <div class="flex-grow-1 overflow-hidden">
+                        <div class="fw-medium text-truncate">{{ entry.user_name or 'Sistema' }}</div>
+                        <div class="text-muted" style="font-size:.72rem;">
+                            {{ STATUS_LABELS.get(entry.from_status, entry.from_status) }}
+                            <i class="bi bi-arrow-right"></i>
+                            <strong class="text-dark">{{ STATUS_LABELS.get(entry.to_status, entry.to_status) }}</strong>
+                        </div>
+                        {% if entry.reason %}
+                        <div class="text-muted fst-italic text-truncate" style="font-size:.72rem;"
+                             title="{{ entry.reason }}">{{ entry.reason }}</div>
+                        {% endif %}
+                        <div class="text-muted" style="font-size:.68rem;">
+                            {{ entry.timestamp.strftime('%d/%m/%Y %H:%M') if entry.timestamp else '' }}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+    </div><!-- /col-lg-4 -->
+
+    <!-- RIGHT: totals + parts + work -->
+    <div class="col-lg-8">
+
+        <!-- KPI summary row -->
+        <div class="row g-2 mb-3">
+            {% set parts_subtotal = [order.total - order.labor_cost, 0] | max %}
+            <div class="col-4">
+                <div class="card border-0 shadow-sm text-center py-3 h-100">
+                    <div class="text-muted small mb-1"><i class="bi bi-tools me-1"></i>Repuestos</div>
+                    <div class="fw-bold fs-5">${{ "%.2f" | format(parts_subtotal) }}</div>
+                </div>
+            </div>
+            <div class="col-4">
+                <div class="card border-0 shadow-sm text-center py-3 h-100">
+                    <div class="text-muted small mb-1"><i class="bi bi-person-badge me-1"></i>Mano de obra</div>
+                    <div class="fw-bold fs-5">${{ "%.2f" | format(order.labor_cost) }}</div>
+                </div>
+            </div>
+            <div class="col-4">
+                <div class="card border-0 shadow-sm text-center py-3 h-100"
+                     style="background: var(--mc-dark); color:white;">
+                    <div class="small mb-1 opacity-75"><i class="bi bi-wallet2 me-1"></i>Total</div>
+                    <div class="fw-bold fs-5">${{ "%.2f" | format(order.total) }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Parts table -->
         <div class="card shadow-sm border-0 mb-3">
-            <div class="card-header bg-dark text-white">
-                <i class="bi bi-tools me-1"></i>Repuestos y Diagnóstico
+            <div class="card-header bg-dark text-white small fw-medium">
+                <i class="bi bi-box-seam me-1"></i>Repuestos utilizados
+                {% if order.parts %}
+                <span class="badge bg-secondary ms-1">{{ order.parts | length }}</span>
+                {% endif %}
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table table-sm align-middle mb-0">
                         <thead class="table-light">
                             <tr>
-                                <th>Repuesto</th>
-                                <th class="text-center">Cant.</th>
-                                <th class="text-end">P. Unit.</th>
-                                <th class="text-end">Subtotal</th>
+                                <th class="ps-3">Repuesto</th>
+                                <th class="text-center" style="width:70px">Cant.</th>
+                                <th class="text-end" style="width:90px">P. Unit.</th>
+                                <th class="text-end pe-3" style="width:95px">Subtotal</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for p in order.parts %}
                             <tr>
-                                <td class="small">{{ p.spare_part_name }}</td>
-                                <td class="text-center">{{ p.quantity }}</td>
-                                <td class="text-end">${{ "%.2f" | format(p.unit_price | float) }}</td>
-                                <td class="text-end fw-bold">${{ "%.2f" | format(p.subtotal | float) }}</td>
+                                <td class="small ps-3">{{ p.spare_part_name }}</td>
+                                <td class="text-center small">{{ p.quantity }}</td>
+                                <td class="text-end small">${{ "%.2f" | format(p.unit_price | float) }}</td>
+                                <td class="text-end fw-bold small pe-3">${{ "%.2f" | format(p.subtotal | float) }}</td>
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="4" class="text-center text-muted py-3 small">
-                                    <i class="bi bi-info-circle me-1"></i>
-                                    Sin repuestos — se agregarán en la etapa de diagnóstico
+                                <td colspan="4" class="text-center text-muted py-4 small">
+                                    {% if order.canonical_status == 'recepcion' %}
+                                    <i class="bi bi-info-circle me-1"></i>Los repuestos se registrarán durante el diagnóstico
+                                    {% else %}
+                                    Sin repuestos registrados aún
+                                    {% endif %}
                                 </td>
                             </tr>
                             {% endfor %}
@@ -339,137 +391,71 @@
             </div>
         </div>
 
-        <div class="card shadow-sm border-0">
-            <div class="card-body">
-                <div class="d-flex justify-content-end">
-                    <table class="table table-sm mb-0" style="max-width:280px;">
-                        <tr>
-                            <td class="text-muted small">Subtotal repuestos</td>
-                            <td class="text-end small">${{ "%.2f" | format([order.total - order.labor_cost, 0] | max) }}</td>
-                        </tr>
-                        <tr>
-                            <td class="text-muted small">Mano de obra</td>
-                            <td class="text-end small">${{ "%.2f" | format(order.labor_cost) }}</td>
-                        </tr>
-                        <tr class="fw-bold fs-5 border-top">
-                            <td>TOTAL</td>
-                            <td class="text-end">${{ "%.2f" | format(order.total) }}</td>
-                        </tr>
-                    </table>
+        <!-- Mechanic work notes -->
+        {% if order.work_notes %}
+        <div class="card shadow-sm border-0 mb-3" style="border-left:4px solid #198754!important;">
+            <div class="card-header small fw-medium"
+                 style="background:#f0fff4;color:#146c43;border-bottom:1px solid #c3e6cb;">
+                <i class="bi bi-wrench me-1"></i>Diagnóstico / Trabajo realizado
+            </div>
+            <div class="card-body py-2 px-3">
+                <p class="mb-0 small" style="white-space:pre-wrap;">{{ order.work_notes }}</p>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Mechanic evidence photos -->
+        {% if order.work_photos %}
+        <div class="card shadow-sm border-0" style="border-left:4px solid #198754!important;">
+            <div class="card-header small fw-medium"
+                 style="background:#f0fff4;color:#146c43;border-bottom:1px solid #c3e6cb;">
+                <i class="bi bi-camera me-1"></i>Evidencias del trabajo
+                <span class="badge ms-1" style="background:#198754;">{{ order.work_photos | length }}</span>
+            </div>
+            <div class="card-body p-2">
+                <div class="row g-1">
+                    {% for photo in order.work_photos %}
+                    <div class="col-3">
+                        <a href="/{{ photo }}" target="_blank">
+                            <img src="/{{ photo }}" class="img-fluid rounded"
+                                 style="height:80px;width:100%;object-fit:cover;" alt="">
+                        </a>
+                    </div>
+                    {% endfor %}
                 </div>
             </div>
         </div>
-        {% else %}
-        <div class="card shadow-sm border-0 h-100">
-            <div class="card-body d-flex flex-column align-items-center justify-content-center text-muted py-5">
-                <i class="bi bi-wrench fs-1 mb-3 opacity-25"></i>
-                <p class="mb-1 fw-medium">Diagnóstico pendiente</p>
-                <small>Los repuestos y costos se registrarán durante el diagnóstico.</small>
-                {% if can_advance and not can_register_work %}
-                <button type="button" class="btn btn-dark btn-sm mt-3"
+        {% endif %}
+
+        <!-- Empty state: recepcion with no parts -->
+        {% if order.canonical_status == 'recepcion' and not order.parts and not order.work_notes %}
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center text-muted py-5">
+                <i class="bi bi-hourglass-split fs-2 opacity-25 d-block mb-2"></i>
+                <p class="small mb-3">El vehículo está en recepción. Envíalo a diagnóstico para comenzar.</p>
+                {% if can_advance %}
+                <button type="button" class="btn btn-dark btn-sm"
                         data-bs-toggle="modal" data-bs-target="#advanceModal">
                     <i class="bi bi-arrow-right-circle me-1"></i>Enviar a Diagnóstico
                 </button>
                 {% elif can_register_work %}
                 <a href="{{ url_for('work_orders.mechanic_work', order_id=order.id) }}"
-                   class="btn btn-success btn-sm mt-3">
+                   class="btn btn-success btn-sm">
                     <i class="bi bi-wrench me-1"></i>Registrar Trabajo
                 </a>
                 {% endif %}
             </div>
         </div>
         {% endif %}
-    </div>
-</div>
 
-<!-- Status history (paginated) -->
-{% if order.status_history %}
-{% set history_rev = order.status_history | reverse | list %}
-{% set recent = history_rev[:5] %}
-{% set older = history_rev[5:] %}
-<div class="card shadow-sm border-0 mt-4">
-    <div class="card-header bg-dark text-white d-flex align-items-center justify-content-between">
-        <span><i class="bi bi-clock-history me-2"></i>Historial de cambios</span>
-        <span class="badge bg-secondary">{{ order.status_history | length }}</span>
-    </div>
-    <div class="card-body p-0">
-        <ul class="list-group list-group-flush" id="historyRecent">
-            {% for entry in recent %}
-            <li class="list-group-item px-4 py-3">
-                <div class="d-flex align-items-start gap-3">
-                    <div class="mt-1">
-                        {% if entry.action == 'advance' %}
-                        <span class="badge bg-success rounded-pill"><i class="bi bi-arrow-right-short"></i></span>
-                        {% else %}
-                        <span class="badge bg-warning text-dark rounded-pill"><i class="bi bi-arrow-left-short"></i></span>
-                        {% endif %}
-                    </div>
-                    <div class="flex-grow-1">
-                        <div class="small fw-medium">
-                            <strong>{{ entry.user_name or 'Sistema' }}</strong>
-                            {% if entry.action == 'advance' %} avanzó {% else %} revirtió {% endif %}
-                            de <span class="badge bg-light text-dark border">{{ STATUS_LABELS.get(entry.from_status, entry.from_status) }}</span>
-                            a <span class="badge bg-dark">{{ STATUS_LABELS.get(entry.to_status, entry.to_status) }}</span>
-                        </div>
-                        {% if entry.reason %}
-                        <div class="text-muted small mt-1"><i class="bi bi-chat-quote me-1"></i>{{ entry.reason }}</div>
-                        {% endif %}
-                        <div class="text-muted" style="font-size:.75rem;">
-                            {{ entry.timestamp.strftime('%d/%m/%Y %H:%M') if entry.timestamp else '' }}
-                        </div>
-                    </div>
-                </div>
-            </li>
-            {% endfor %}
-        </ul>
-        {% if older %}
-        <div class="collapse" id="historyOlder">
-            <ul class="list-group list-group-flush border-top">
-                {% for entry in older %}
-                <li class="list-group-item px-4 py-3">
-                    <div class="d-flex align-items-start gap-3">
-                        <div class="mt-1">
-                            {% if entry.action == 'advance' %}
-                            <span class="badge bg-success rounded-pill"><i class="bi bi-arrow-right-short"></i></span>
-                            {% else %}
-                            <span class="badge bg-warning text-dark rounded-pill"><i class="bi bi-arrow-left-short"></i></span>
-                            {% endif %}
-                        </div>
-                        <div class="flex-grow-1">
-                            <div class="small fw-medium">
-                                <strong>{{ entry.user_name or 'Sistema' }}</strong>
-                                {% if entry.action == 'advance' %} avanzó {% else %} revirtió {% endif %}
-                                de <span class="badge bg-light text-dark border">{{ STATUS_LABELS.get(entry.from_status, entry.from_status) }}</span>
-                                a <span class="badge bg-dark">{{ STATUS_LABELS.get(entry.to_status, entry.to_status) }}</span>
-                            </div>
-                            {% if entry.reason %}
-                            <div class="text-muted small mt-1"><i class="bi bi-chat-quote me-1"></i>{{ entry.reason }}</div>
-                            {% endif %}
-                            <div class="text-muted" style="font-size:.75rem;">
-                                {{ entry.timestamp.strftime('%d/%m/%Y %H:%M') if entry.timestamp else '' }}
-                            </div>
-                        </div>
-                    </div>
-                </li>
-                {% endfor %}
-            </ul>
-        </div>
-        <div class="card-footer bg-white text-center border-0 py-2">
-            <button class="btn btn-sm btn-outline-secondary" type="button"
-                    data-bs-toggle="collapse" data-bs-target="#historyOlder"
-                    id="historyToggle"
-                    onclick="this.textContent = this.getAttribute('aria-expanded') === 'true' ? 'Ver {{ older | length }} registros anteriores' : 'Ocultar anteriores'">
-                Ver {{ older | length }} registros anteriores
-            </button>
-        </div>
-        {% endif %}
-    </div>
-</div>
-{% endif %}
+    </div><!-- /col-lg-8 -->
 
-<!-- ── MODALS ────────────────────────────────────────────── -->
+</div><!-- /row -->
 
-<!-- Advance modal (admin / operator / mechanic) -->
+
+<!-- ── MODALS ────────────────────────────────────────────────── -->
+
+<!-- Advance modal -->
 {% if can_advance and not (order.canonical_status == 'presupuesto' and current_user and current_user.role == 'client') %}
 <div class="modal fade" id="advanceModal" tabindex="-1">
     <div class="modal-dialog">
@@ -505,7 +491,7 @@
                             {% endif %}
                         </label>
                         <textarea name="reason" class="form-control" rows="3"
-                                  placeholder="{% if order.canonical_status == 'pago_pendiente' %}Ej: Transferencia #123456, efectivo recibido en caja...{% else %}Describe el motivo u observación del cambio (opcional)...{% endif %}"
+                                  placeholder="{% if order.canonical_status == 'pago_pendiente' %}Ej: Transferencia #123456, efectivo recibido en caja...{% else %}Describe el motivo u observación (opcional)...{% endif %}"
                                   {% if order.canonical_status == 'pago_pendiente' and current_user and current_user.role in ('admin', 'operator') %}required{% endif %}></textarea>
                     </div>
                     {% if order.canonical_status == 'pago_pendiente' %}
@@ -526,7 +512,7 @@
 </div>
 {% endif %}
 
-<!-- Client approval modal (presupuesto → aprobado) -->
+<!-- Client approval modal -->
 {% if can_advance and order.canonical_status == 'presupuesto' and current_user and current_user.role == 'client' %}
 <div class="modal fade" id="approveModal" tabindex="-1">
     <div class="modal-dialog">
