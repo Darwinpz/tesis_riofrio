@@ -50,9 +50,15 @@
             <input type="date" name="end_date" class="form-control form-control-sm" value="{{ filter_end }}">
         </div>
         <div class="col-sm-2 d-flex gap-1">
-            <button type="submit" class="btn btn-dark btn-sm flex-fill">Filtrar</button>
-            <a href="{{ url_for('stock.index') }}" class="btn btn-outline-secondary btn-sm">
+            <button type="submit" class="btn btn-dark btn-sm flex-fill">
+                <i class="bi bi-search me-1"></i>Filtrar
+            </button>
+            <a href="{{ url_for('stock.index') }}" class="btn btn-outline-secondary btn-sm" title="Limpiar">
                 <i class="bi bi-x"></i>
+            </a>
+            <a href="{{ url_for('stock.report', spare_part_id=filter_part, movement_type=filter_type, start_date=filter_start, end_date=filter_end) }}"
+               class="btn btn-outline-danger btn-sm" target="_blank" title="Exportar PDF con los filtros actuales">
+                <i class="bi bi-file-pdf me-1"></i>PDF
             </a>
         </div>
     </div>

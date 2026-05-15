@@ -14,10 +14,11 @@ class SparePartService:
 
     @staticmethod
     def get_paginated(page: int = 1, per_page: int = 10, search: str = None,
-                      category_id: str = None, brand_id: str = None, vehicle_model_id: str = None) -> Dict:
+                      category_id: str = None, brand_id: str = None, vehicle_model_id: str = None,
+                      critical_only: bool = False) -> Dict:
         try:
             parts, total = SparePartRepository.find_paginated(
-                page, per_page, search, category_id, brand_id, vehicle_model_id)
+                page, per_page, search, category_id, brand_id, vehicle_model_id, critical_only)
             total_pages = max(1, (total + per_page - 1) // per_page)
             return {"success": True, "parts": parts, "total": total, "page": page,
                     "per_page": per_page, "total_pages": total_pages}

@@ -1,5 +1,5 @@
 import os
-from flask import render_template, request, redirect, url_for, Blueprint, flash, jsonify, current_app
+from flask import render_template, request, redirect, url_for, Blueprint, flash, jsonify, make_response, current_app
 from services.sparePartService import SparePartService
 from services.categoryService import CategoryService
 from services.supplierService import SupplierService
@@ -7,6 +7,7 @@ from services.brandService import BrandService
 from services.vehicleModelService import VehicleModelService
 from services.stockService import StockService
 from utils.authDecorator import login_required, role_required
+from utils.reportUtil import generate_stock_report
 
 spare_part_bp = Blueprint('spare_parts', __name__, url_prefix='/spare-parts')
 
@@ -26,11 +27,13 @@ def index():
     category_id = request.args.get('category_id', '').strip()
     brand_id = request.args.get('brand_id', '').strip()
     vehicle_model_id = request.args.get('vehicle_model_id', '').strip()
+    critical_only = request.args.get('critical_only') == '1'
     result = SparePartService.get_paginated(page=page, per_page=10,
                                             search=search or None,
                                             category_id=category_id or None,
                                             brand_id=brand_id or None,
-                                            vehicle_model_id=vehicle_model_id or None)
+                                            vehicle_model_id=vehicle_model_id or None,
+                                            critical_only=critical_only)
     categories = CategoryService.get_all().get("categories", [])
     brands = BrandService.get_all().get("brands", [])
     vehicle_models_list = VehicleModelService.get_all().get("vehicle_models", [])
@@ -44,6 +47,7 @@ def index():
                            category_id=category_id,
                            brand_id=brand_id,
                            vehicle_model_id=vehicle_model_id,
+                           critical_only=critical_only,
                            categories=categories,
                            brands=brands,
                            vehicle_models_list=vehicle_models_list,
@@ -132,6 +136,46 @@ def deactivate(part_id):
     else:
         flash(result["message"], 'danger')
     return redirect(url_for('spare_parts.index'))
+
+@spare_part_bp.route('/report', methods=['GET'])
+@role_required('admin', 'operator')
+def report():
+    search = request.args.get('search', '').strip() or None
+    category_id = request.args.get('category_id', '').strip() or None
+    brand_id = request.args.get('brand_id', '').strip() or None
+    vehicle_model_id = request.args.get('vehicle_model_id', '').strip() or None
+    critical_only = request.args.get('critical_only') == '1'
+
+    result = SparePartService.get_paginated(page=1, per_page=5000,
+                                            search=search,
+                                            category_id=category_id,
+                                            brand_id=brand_id,
+                                            vehicle_model_id=vehicle_model_id,
+                                            critical_only=critical_only)
+    parts = result.get("parts", [])
+
+    categories_map = {c.id: c.name for c in CategoryService.get_all().get("categories", [])}
+    brands_map, _ = _lookup_maps()
+
+    filters = []
+    if search:
+        filters.append(f"Búsqueda: {search}")
+    if category_id:
+        filters.append(f"Categoría: {categories_map.get(category_id, category_id)}")
+    if brand_id:
+        filters.append(f"Marca: {brands_map.get(brand_id, brand_id)}")
+    if critical_only:
+        filters.append("Solo stock crítico")
+    filter_desc = " · ".join(filters) if filters else ""
+
+    pdf = generate_stock_report(parts, critical_only=critical_only,
+                                category_map=categories_map, brand_map=brands_map,
+                                filter_desc=filter_desc)
+    resp = make_response(pdf)
+    resp.headers['Content-Type'] = 'application/pdf'
+    resp.headers['Content-Disposition'] = 'inline; filename="inventario_repuestos.pdf"'
+    return resp
+
 
 @spare_part_bp.route('/api/all', methods=['GET'])
 @role_required('admin', 'operator')

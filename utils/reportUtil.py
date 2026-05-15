@@ -47,87 +47,128 @@ def _header_table(title: str, subtitle: str = "") -> Table:
     return tbl
 
 
-def generate_stock_report(parts: list, critical_only: bool = False) -> bytes:
+def generate_stock_report(parts: list, critical_only: bool = False,
+                          category_map: dict = None, brand_map: dict = None,
+                          filter_desc: str = "") -> bytes:
+    from reportlab.lib.pagesizes import landscape
     buffer = io.BytesIO()
-    doc = _build_doc(buffer)
+    doc = SimpleDocTemplate(buffer, pagesize=landscape(A4),
+                            leftMargin=1.5*cm, rightMargin=1.5*cm,
+                            topMargin=2*cm, bottomMargin=2*cm)
     styles = getSampleStyleSheet()
     story = []
 
-    title = "Reporte de Stock Crítico" if critical_only else "Reporte de Inventario"
-    story.append(_header_table(title, f"Total de repuestos: {len(parts)}"))
+    category_map = category_map or {}
+    brand_map = brand_map or {}
+
+    title = "Reporte de Stock Crítico" if critical_only else "Reporte de Inventario de Repuestos"
+    subtitle_parts = [f"Total: {len(parts)} repuesto(s)"]
+    if filter_desc:
+        subtitle_parts.append(filter_desc)
+    story.append(_header_table(title, " · ".join(subtitle_parts)))
     story.append(Spacer(1, 0.4*cm))
 
-    headers = ["Código", "Nombre", "Stock Actual", "Stock Mínimo", "Stock Máximo", "Precio Venta", "Estado"]
+    headers = ["Código", "Nombre", "Categoría", "Marca/Modelo", "Stock\nActual", "Stock\nMín.", "Stock\nMáx.", "P. Compra", "P. Venta", "Estado"]
     rows = [headers]
     for p in parts:
         status = "CRÍTICO" if p.stock_actual <= p.stock_minimo else "OK"
+        category = category_map.get(p.category_id, "—") if p.category_id else "—"
+        brand = brand_map.get(p.brand_id, "—") if p.brand_id else "—"
         rows.append([
             p.code,
             p.name,
+            category,
+            brand,
             str(p.stock_actual),
             str(p.stock_minimo),
             str(p.stock_maximo),
+            f"${p.precio_compra:.2f}",
             f"${p.precio_venta:.2f}",
             status
         ])
 
-    col_widths = [2.5*cm, 5.5*cm, 2.2*cm, 2.2*cm, 2.5*cm, 2.5*cm, 2*cm]
+    # A4 landscape usable ≈ 26.7 cm
+    col_widths = [2*cm, 5.5*cm, 3*cm, 3*cm, 1.8*cm, 1.8*cm, 1.8*cm, 2.2*cm, 2.2*cm, 1.8*cm]
     tbl = Table(rows, colWidths=col_widths, repeatRows=1)
     tbl.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), ACCENT_COLOR),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 9),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTSIZE', (0, 0), (-1, 0), 8),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+        ('ALIGN', (0, 1), (0, -1), 'CENTER'),
         ('ALIGN', (1, 1), (1, -1), 'LEFT'),
+        ('ALIGN', (2, 1), (3, -1), 'LEFT'),
+        ('ALIGN', (4, 1), (6, -1), 'CENTER'),
+        ('ALIGN', (7, 1), (9, -1), 'RIGHT'),
         ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 1), (-1, -1), 8),
+        ('FONTSIZE', (0, 1), (-1, -1), 7.5),
         ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, LIGHT_GRAY]),
         ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#dee2e6")),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('TOPPADDING', (0, 0), (-1, -1), 4),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('TOPPADDING', (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
     ]))
 
-    # Colorear filas críticas en rojo claro
     for i, p in enumerate(parts, start=1):
         if p.stock_actual <= p.stock_minimo:
             tbl.setStyle(TableStyle([
                 ('BACKGROUND', (0, i), (-1, i), colors.HexColor("#ffe0e0")),
-                ('TEXTCOLOR', (6, i), (6, i), colors.HexColor("#cc0000")),
-                ('FONTNAME', (6, i), (6, i), 'Helvetica-Bold'),
+                ('TEXTCOLOR', (9, i), (9, i), colors.HexColor("#cc0000")),
+                ('FONTNAME', (9, i), (9, i), 'Helvetica-Bold'),
             ]))
 
     story.append(tbl)
+
+    critical_count = sum(1 for p in parts if p.stock_actual <= p.stock_minimo)
+    if critical_count > 0:
+        story.append(Spacer(1, 0.3*cm))
+        warn_style = ParagraphStyle('warn', parent=styles['Normal'],
+                                    fontName='Helvetica', fontSize=8,
+                                    textColor=colors.HexColor("#cc0000"))
+        story.append(Paragraph(
+            f"* {critical_count} repuesto(s) con stock por debajo del mínimo (marcados en rojo)",
+            warn_style))
+
     doc.build(story)
     return buffer.getvalue()
 
 
 def generate_movements_report(movements: list, parts_map: dict,
-                               start_date: str = None, end_date: str = None) -> bytes:
+                               start_date: str = None, end_date: str = None,
+                               filter_desc: str = "") -> bytes:
     buffer = io.BytesIO()
     doc = _build_doc(buffer)
+    styles = getSampleStyleSheet()
     story = []
 
-    subtitle = ""
+    subtitle_parts = [f"Total: {len(movements)} movimiento(s)"]
     if start_date or end_date:
-        subtitle = f"Período: {start_date or '—'} a {end_date or '—'}"
-    story.append(_header_table("Reporte de Movimientos de Stock", subtitle))
+        subtitle_parts.append(f"Período: {start_date or '—'} al {end_date or '—'}")
+    if filter_desc:
+        subtitle_parts.append(filter_desc)
+    story.append(_header_table("Historial de Movimientos de Stock", " · ".join(subtitle_parts)))
     story.append(Spacer(1, 0.4*cm))
 
     headers = ["Fecha", "Repuesto", "Tipo", "Cantidad", "Motivo", "Nota"]
     rows = [headers]
+    total_entrada = 0
+    total_salida = 0
     for m in movements:
+        if m.movement_type == "entrada":
+            total_entrada += m.quantity
+        else:
+            total_salida += m.quantity
         rows.append([
             m.created_at.strftime("%d/%m/%Y %H:%M") if hasattr(m.created_at, 'strftime') else str(m.created_at),
             parts_map.get(m.spare_part_id, m.spare_part_id),
             "Entrada" if m.movement_type == "entrada" else "Salida",
             str(m.quantity),
             m.motive.replace("_", " ").title(),
-            m.note or ""
+            m.note or "—"
         ])
 
-    col_widths = [3.2*cm, 5*cm, 1.8*cm, 1.8*cm, 2.8*cm, '*']
+    col_widths = [3.2*cm, 5.5*cm, 1.8*cm, 1.8*cm, 2.8*cm, '*']
     tbl = Table(rows, colWidths=col_widths, repeatRows=1)
     tbl.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), ACCENT_COLOR),
@@ -138,22 +179,54 @@ def generate_movements_report(movements: list, parts_map: dict,
         ('FONTSIZE', (0, 1), (-1, -1), 8),
         ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, LIGHT_GRAY]),
         ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#dee2e6")),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+        ('ALIGN', (0, 1), (0, -1), 'CENTER'),
         ('ALIGN', (1, 1), (1, -1), 'LEFT'),
+        ('ALIGN', (2, 1), (3, -1), 'CENTER'),
+        ('ALIGN', (4, 1), (4, -1), 'LEFT'),
         ('ALIGN', (5, 1), (5, -1), 'LEFT'),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('TOPPADDING', (0, 0), (-1, -1), 4),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
     ]))
 
-    # Color por tipo
     for i, m in enumerate(movements, start=1):
         if m.movement_type == "entrada":
-            tbl.setStyle(TableStyle([('TEXTCOLOR', (2, i), (2, i), colors.HexColor("#198754"))]))
+            tbl.setStyle(TableStyle([('TEXTCOLOR', (2, i), (2, i), colors.HexColor("#198754")),
+                                     ('FONTNAME', (2, i), (2, i), 'Helvetica-Bold')]))
         else:
-            tbl.setStyle(TableStyle([('TEXTCOLOR', (2, i), (2, i), colors.HexColor("#dc3545"))]))
+            tbl.setStyle(TableStyle([('TEXTCOLOR', (2, i), (2, i), colors.HexColor("#dc3545")),
+                                     ('FONTNAME', (2, i), (2, i), 'Helvetica-Bold')]))
 
     story.append(tbl)
+
+    # Summary totals
+    story.append(Spacer(1, 0.4*cm))
+    story.append(HRFlowable(width="100%", thickness=0.5, color=DARK_GRAY))
+    story.append(Spacer(1, 0.2*cm))
+    summary_style = ParagraphStyle('sum', parent=styles['Normal'],
+                                   fontName='Helvetica', fontSize=8,
+                                   textColor=DARK_GRAY)
+    bold_green = ParagraphStyle('bg', parent=styles['Normal'],
+                                fontName='Helvetica-Bold', fontSize=8,
+                                textColor=colors.HexColor("#198754"))
+    bold_red = ParagraphStyle('br', parent=styles['Normal'],
+                              fontName='Helvetica-Bold', fontSize=8,
+                              textColor=colors.HexColor("#dc3545"))
+    sum_data = [[
+        Paragraph("Resumen:", summary_style),
+        Paragraph(f"Entradas: +{total_entrada} unid.", bold_green),
+        Paragraph(f"Salidas: -{total_salida} unid.", bold_red),
+        Paragraph(f"Neto: {'+' if total_entrada >= total_salida else ''}{total_entrada - total_salida} unid.", summary_style),
+    ]]
+    sum_tbl = Table(sum_data, colWidths=[2.5*cm, 4*cm, 4*cm, 4*cm])
+    sum_tbl.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+    ]))
+    story.append(sum_tbl)
+
     doc.build(story)
     return buffer.getvalue()
 

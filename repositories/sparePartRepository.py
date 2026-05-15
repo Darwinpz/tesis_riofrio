@@ -33,7 +33,8 @@ class SparePartRepository:
     @classmethod
     def find_paginated(cls, page: int, per_page: int, search: str = None,
                        category_id: str = None, brand_id: str = None,
-                       vehicle_model_id: str = None) -> Tuple[List[SparePartModel], int]:
+                       vehicle_model_id: str = None,
+                       critical_only: bool = False) -> Tuple[List[SparePartModel], int]:
         try:
             collection = cls._get_collection()
             query = {"is_active": True}
@@ -48,6 +49,8 @@ class SparePartRepository:
                 query["brand_id"] = brand_id
             if vehicle_model_id:
                 query["vehicle_model_id"] = vehicle_model_id
+            if critical_only:
+                query["$expr"] = {"$lte": ["$stock_actual", "$stock_minimo"]}
             total = collection.count_documents(query)
             skip = (page - 1) * per_page
             parts = [SparePartModel.from_dict(p) for p in

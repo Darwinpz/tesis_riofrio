@@ -1,9 +1,10 @@
 import os
-from flask import render_template, request, redirect, url_for, Blueprint, flash, session, current_app
+from flask import render_template, request, redirect, url_for, Blueprint, flash, session, make_response, current_app
 from services.stockService import StockService
 from services.sparePartService import SparePartService
 from services.supplierService import SupplierService
 from utils.authDecorator import role_required
+from utils.reportUtil import generate_movements_report
 
 stock_bp = Blueprint('stock', __name__, url_prefix='/stock')
 
@@ -45,6 +46,37 @@ def index():
                            filter_type=movement_type or '',
                            filter_start=start_date or '',
                            filter_end=end_date or '')
+
+
+@stock_bp.route('/report', methods=['GET'])
+@role_required('admin', 'operator')
+def report():
+    spare_part_id = request.args.get('spare_part_id', '').strip() or None
+    movement_type = request.args.get('movement_type', '').strip() or None
+    start_date = request.args.get('start_date', '').strip() or None
+    end_date = request.args.get('end_date', '').strip() or None
+
+    result = StockService.get_all_for_report(spare_part_id, movement_type, start_date, end_date)
+    movements = result.get("movements", [])
+
+    all_parts = SparePartService.get_all_active().get("parts", [])
+    parts_map = {p.id: f"{p.code} — {p.name}" for p in all_parts}
+
+    filters = []
+    if spare_part_id:
+        part_label = parts_map.get(spare_part_id, spare_part_id)
+        filters.append(f"Repuesto: {part_label}")
+    if movement_type:
+        filters.append(f"Tipo: {'Entrada' if movement_type == 'entrada' else 'Salida'}")
+    filter_desc = " · ".join(filters) if filters else ""
+
+    pdf = generate_movements_report(movements, parts_map,
+                                    start_date=start_date, end_date=end_date,
+                                    filter_desc=filter_desc)
+    resp = make_response(pdf)
+    resp.headers['Content-Type'] = 'application/pdf'
+    resp.headers['Content-Disposition'] = 'inline; filename="movimientos_stock.pdf"'
+    return resp
 
 
 @stock_bp.route('/entry', methods=['GET', 'POST'])
