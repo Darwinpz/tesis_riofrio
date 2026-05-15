@@ -47,7 +47,7 @@
         <div class="col-lg-5">
             <div class="card shadow-sm border-0 mb-3">
                 <div class="card-header bg-dark text-white">
-                    <i class="bi bi-chat-text me-1"></i>Diagnóstico / Observaciones
+                    <i class="bi bi-chat-text me-1"></i>Diagnóstico / Observaciones <span class="text-danger">*</span>
                 </div>
                 <div class="card-body">
                     <textarea name="notes" class="form-control" rows="5"
@@ -63,11 +63,18 @@
                     {% if order.work_photos %}
                     <div class="row g-1 mb-3">
                         {% for photo in order.work_photos %}
-                        <div class="col-4">
+                        <div class="col-4 position-relative">
                             <a href="/{{ photo }}" target="_blank">
                                 <img src="/{{ photo }}" class="img-fluid rounded border"
                                      style="height:70px;width:100%;object-fit:cover;" alt="">
                             </a>
+                            <button type="button"
+                                    class="btn btn-danger btn-sm position-absolute top-0 end-0 p-0"
+                                    style="width:22px;height:22px;font-size:.7rem;line-height:1;border-radius:50%;margin:2px;"
+                                    title="Eliminar foto"
+                                    onclick="confirmDeletePhoto({{ photo | tojson }})">
+                                <i class="bi bi-x"></i>
+                            </button>
                         </div>
                         {% endfor %}
                     </div>
@@ -159,6 +166,14 @@
         <a href="{{ url_for('work_orders.detail', order_id=order.id) }}" class="btn btn-outline-secondary">Cancelar</a>
     </div>
 </form>
+
+<!-- Delete photo form (outside main form to avoid nesting) -->
+<form method="POST" action="{{ url_for('work_orders.delete_photo', order_id=order.id) }}"
+      id="deletePhotoForm" style="display:none;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="photo_type" value="work">
+    <input type="hidden" name="photo_path" id="deletePhotoPath">
+</form>
 {% endblock %}
 
 {% block extra_scripts %}
@@ -242,5 +257,27 @@ function updateTotal() {
 
 renderParts();
 updateTotal();
+
+function confirmDeletePhoto(path) {
+    if (!confirm('¿Eliminar esta foto?')) return;
+    document.getElementById('deletePhotoPath').value = path;
+    document.getElementById('deletePhotoForm').submit();
+}
+
+document.getElementById('workForm').addEventListener('submit', function(e) {
+    const notes = document.querySelector('textarea[name="notes"]').value.trim();
+    if (!notes) {
+        e.preventDefault();
+        let alertEl = document.getElementById('workValidationAlert');
+        if (!alertEl) {
+            alertEl = document.createElement('div');
+            alertEl.id = 'workValidationAlert';
+            alertEl.className = 'alert alert-danger py-2 small mt-3';
+            this.appendChild(alertEl);
+        }
+        alertEl.textContent = 'El diagnóstico / observaciones es obligatorio.';
+        alertEl.scrollIntoView({behavior:'smooth', block:'center'});
+    }
+});
 </script>
 {% endblock %}

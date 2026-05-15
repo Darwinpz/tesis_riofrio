@@ -1,10 +1,14 @@
 import os
-from flask import render_template, request, redirect, url_for, Blueprint, flash, session, make_response, current_app
+from flask import render_template, request, redirect, url_for, Blueprint, flash, session, make_response, current_app, Response
 from services.stockService import StockService
 from services.sparePartService import SparePartService
 from services.supplierService import SupplierService
+from services.userService import UserService
 from utils.authDecorator import role_required
-from utils.reportUtil import generate_movements_report
+from utils.reportUtil import generate_movements_report, generate_exit_comprobante
+from repositories.stockMovementRepository import StockMovementRepository
+from repositories.userRepository import UserRepository
+from repositories.personRepository import PersonRepository
 
 stock_bp = Blueprint('stock', __name__, url_prefix='/stock')
 
@@ -116,9 +120,12 @@ def entry():
 @role_required('admin', 'operator')
 def exit():
     parts = SparePartService.get_all_active().get("parts", [])
+    clients = UserService.get_clients().get("clients", [])
+    suppliers = SupplierService.get_all().get("suppliers", [])
     if request.method == 'GET':
         preselect = request.args.get('part_id', '')
-        return render_template('/views/stock/exit.html', parts=parts, preselect=preselect)
+        return render_template('/views/stock/exit.html', parts=parts, preselect=preselect,
+                               clients=clients, suppliers=suppliers)
 
     spare_part_id = request.form.get('spare_part_id', '').strip()
     try:
@@ -127,14 +134,45 @@ def exit():
         quantity = 0
     motive = request.form.get('motive', '').strip()
     note = request.form.get('note', '').strip()
+    recipient_name = request.form.get('recipient_name', '').strip() or None
+    recipient_type = request.form.get('recipient_type', '').strip() or None
     user_id = session.get("user_id")
-    attachment_file = request.files.get('attachment')
 
     result = StockService.register_exit(spare_part_id, quantity, motive, note, user_id,
-                                         attachment_file=attachment_file,
-                                         upload_folder=_upload_folder())
+                                         recipient_name=recipient_name,
+                                         recipient_type=recipient_type)
     if result["success"]:
         flash(result["message"], 'success')
+        movement_id = result.get("movement_id")
+        if movement_id:
+            return redirect(url_for('stock.comprobante', movement_id=movement_id))
         return redirect(url_for('stock.index'))
     flash(result["message"], 'danger')
-    return render_template('/views/stock/exit.html', parts=parts, preselect=spare_part_id)
+    return render_template('/views/stock/exit.html', parts=parts, preselect=spare_part_id,
+                           clients=clients, suppliers=suppliers)
+
+
+@stock_bp.route('/<movement_id>/comprobante', methods=['GET'])
+@role_required('admin', 'operator')
+def comprobante(movement_id):
+    movement = StockMovementRepository.find_by_id(movement_id)
+    if not movement:
+        flash('Movimiento no encontrado', 'danger')
+        return redirect(url_for('stock.index'))
+
+    all_parts = SparePartService.get_all_active().get("parts", [])
+    parts_map = {p.id: p for p in all_parts}
+    part = parts_map.get(movement.spare_part_id)
+    part_name = f"{part.code} — {part.name}" if part else movement.spare_part_id
+
+    user_id = session.get("user_id")
+    user = UserRepository.find_by_id(user_id)
+    person = PersonRepository.find_by_user_id(user_id)
+    if person:
+        user_name = f"{person.first_name} {person.last_name}".strip()
+    else:
+        user_name = user.email if user else user_id
+
+    pdf_bytes = generate_exit_comprobante(movement, part_name, user_name)
+    return Response(pdf_bytes, mimetype='application/pdf',
+                    headers={"Content-Disposition": f"inline; filename=comprobante-salida-{movement_id}.pdf"})

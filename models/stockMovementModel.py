@@ -4,9 +4,11 @@ class StockMovementModel:
     ENTRY_MOTIVES = ["compra", "devolucion", "ajuste"]
     EXIT_MOTIVES = ["orden_trabajo", "venta_directa", "ajuste", "danio"]
 
+    RECIPIENT_TYPES = ["cliente", "proveedor", "otro"]
+
     def __init__(self, spare_part_id, movement_type, quantity, motive,
                  note=None, user_id=None, work_order_id=None, supplier_id=None,
-                 attachment_path=None, id=None):
+                 attachment_path=None, recipient_name=None, recipient_type=None, id=None):
         self.id = id
         self.spare_part_id = spare_part_id
         self.movement_type = movement_type  # "entrada" | "salida"
@@ -17,6 +19,8 @@ class StockMovementModel:
         self.work_order_id = work_order_id
         self.supplier_id = supplier_id
         self.attachment_path = attachment_path
+        self.recipient_name = recipient_name
+        self.recipient_type = recipient_type  # "cliente" | "proveedor" | "otro"
         self.created_at = datetime.now()
 
     @classmethod
@@ -30,7 +34,9 @@ class StockMovementModel:
             user_id=data.get("user_id"),
             work_order_id=data.get("work_order_id"),
             supplier_id=data.get("supplier_id"),
-            attachment_path=data.get("attachment_path")
+            attachment_path=data.get("attachment_path"),
+            recipient_name=data.get("recipient_name"),
+            recipient_type=data.get("recipient_type"),
         )
         if "_id" in data:
             mv.id = str(data["_id"])
@@ -49,6 +55,8 @@ class StockMovementModel:
             "work_order_id": self.work_order_id,
             "supplier_id": self.supplier_id,
             "attachment_path": self.attachment_path,
+            "recipient_name": self.recipient_name,
+            "recipient_type": self.recipient_type,
             "created_at": self.created_at
         }
 

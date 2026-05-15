@@ -77,7 +77,8 @@ class StockService:
     @staticmethod
     def register_exit(spare_part_id: str, quantity: int, motive: str, note: str,
                       user_id: str, work_order_id: str = None,
-                      attachment_file=None, upload_folder: str = None) -> Dict:
+                      attachment_file=None, upload_folder: str = None,
+                      recipient_name: str = None, recipient_type: str = None) -> Dict:
         if not spare_part_id:
             return {"success": False, "message": "Debe seleccionar un repuesto"}
         if quantity <= 0:
@@ -102,10 +103,13 @@ class StockService:
                 note=note.strip() if note else None,
                 user_id=user_id,
                 work_order_id=work_order_id,
-                attachment_path=attachment_path
+                attachment_path=attachment_path,
+                recipient_name=recipient_name.strip() if recipient_name else None,
+                recipient_type=recipient_type or None,
             )
-            StockMovementRepository.create(movement)
-            return {"success": True, "message": f"Salida registrada. Nuevo stock: {new_stock}"}
+            movement_id = StockMovementRepository.create(movement)
+            return {"success": True, "message": f"Salida registrada. Nuevo stock: {new_stock}",
+                    "movement_id": movement_id}
         except Exception as e:
             return {"success": False, "message": f"Error al registrar salida: {e}"}
 

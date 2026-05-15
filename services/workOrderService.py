@@ -203,11 +203,18 @@ class WorkOrderService:
                 return {"success": False,
                         "message": "Debe indicar el número de comprobante o referencia de pago"}
 
-            # Diagnostico → presupuesto requires parts or labor
+            # Diagnostico → presupuesto requires notes, parts, and labor
             if current == "diagnostico" and next_status == "presupuesto":
-                if not order.parts and order.labor_cost <= 0:
+                missing = []
+                if not order.work_notes or not order.work_notes.strip():
+                    missing.append("diagnóstico / observaciones")
+                if not order.parts:
+                    missing.append("repuestos utilizados")
+                if order.labor_cost <= 0:
+                    missing.append("mano de obra")
+                if missing:
                     return {"success": False,
-                            "message": "Debe registrar repuestos o mano de obra antes de emitir el presupuesto"}
+                            "message": f"Antes de emitir el presupuesto debe registrar: {', '.join(missing)}"}
 
             # Stock deduction on delivery
             if next_status == "entregado":
@@ -242,11 +249,14 @@ class WorkOrderService:
                 "reason": reason.strip(),
                 "timestamp": datetime.now()
             }
-            WorkOrderRepository.update_by_id(order_id, {
+            update_fields = {
                 "status": next_status,
                 "status_history": order.status_history + [history_entry],
                 "updated_at": datetime.now()
-            })
+            }
+            if next_status == "pago_pendiente":
+                update_fields["payment_proof_path"] = None
+            WorkOrderRepository.update_by_id(order_id, update_fields)
             label = WorkOrderModel.STATUS_LABELS[next_status]
             return {"success": True, "message": f"Estado actualizado: {label}", "new_status": next_status}
         except Exception as e:
@@ -337,6 +347,93 @@ class WorkOrderService:
             return {"success": True, "message": f"Estado revertido a: {label}"}
         except Exception as e:
             return {"success": False, "message": f"Error al revertir el estado: {e}"}
+
+    @staticmethod
+    def cancel_order(order_id: str, user_role: str, user_id: str,
+                     user_name: str = "", reason: str = "") -> Dict:
+        try:
+            if not reason.strip():
+                return {"success": False, "message": "Debe indicar el motivo de cancelación"}
+
+            order = WorkOrderRepository.find_by_id(order_id)
+            if not order:
+                return {"success": False, "message": "Ingreso no encontrado"}
+
+            if order.is_closed:
+                return {"success": False, "message": "Este ingreso ya está cerrado"}
+
+            current = order.canonical_status
+
+            if user_role == "client":
+                if current != "presupuesto":
+                    return {"success": False, "message": "Solo puedes rechazar el presupuesto"}
+                if order.client_id != user_id:
+                    return {"success": False, "message": "No tienes permiso para rechazar este presupuesto"}
+            elif user_role not in ("admin", "operator"):
+                return {"success": False, "message": "No tienes permiso para cancelar este ingreso"}
+
+            history_entry = {
+                "action": "cancel",
+                "from_status": current,
+                "to_status": "cancelado",
+                "user_id": user_id,
+                "user_name": user_name,
+                "reason": reason.strip(),
+                "timestamp": datetime.now()
+            }
+            WorkOrderRepository.update_by_id(order_id, {
+                "status": "cancelado",
+                "status_history": order.status_history + [history_entry],
+                "updated_at": datetime.now()
+            })
+            return {"success": True, "message": "Ingreso cancelado"}
+        except Exception as e:
+            return {"success": False, "message": f"Error al cancelar el ingreso: {e}"}
+
+    @staticmethod
+    def delete_photo(order_id: str, photo_type: str, photo_path: str,
+                     user_role: str, user_id: str, static_folder: str = None) -> Dict:
+        try:
+            order = WorkOrderRepository.find_by_id(order_id)
+            if not order:
+                return {"success": False, "message": "Ingreso no encontrado"}
+
+            if photo_type == "vehicle":
+                if user_role not in ("admin", "operator"):
+                    return {"success": False, "message": "No tienes permiso para eliminar fotos de recepción"}
+                photos = list(order.vehicle_photos)
+                if photo_path not in photos:
+                    return {"success": False, "message": "Foto no encontrada"}
+                photos.remove(photo_path)
+                WorkOrderRepository.update_by_id(order_id, {
+                    "vehicle_photos": photos,
+                    "updated_at": datetime.now()
+                })
+            elif photo_type == "work":
+                can_delete = user_role in ("admin", "operator") or (
+                    user_role == "mechanic" and order.mechanic_id == user_id
+                )
+                if not can_delete:
+                    return {"success": False, "message": "No tienes permiso para eliminar fotos de trabajo"}
+                photos = list(order.work_photos)
+                if photo_path not in photos:
+                    return {"success": False, "message": "Foto no encontrada"}
+                photos.remove(photo_path)
+                WorkOrderRepository.update_by_id(order_id, {
+                    "work_photos": photos,
+                    "updated_at": datetime.now()
+                })
+            else:
+                return {"success": False, "message": "Tipo de foto inválido"}
+
+            if static_folder and photo_path:
+                full_path = os.path.join(static_folder, photo_path)
+                if os.path.exists(full_path):
+                    os.remove(full_path)
+
+            return {"success": True, "message": "Foto eliminada correctamente"}
+        except Exception as e:
+            return {"success": False, "message": f"Error al eliminar la foto: {e}"}
 
     @staticmethod
     def upload_payment_proof(order_id: str, user_id: str, user_role: str,

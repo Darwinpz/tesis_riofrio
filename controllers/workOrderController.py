@@ -137,6 +137,14 @@ def detail(order_id):
     )
 
     can_revert = order.can_user_revert(current_user.role) if current_user else False
+
+    can_cancel = False
+    if current_user and not order.is_closed:
+        if current_user.role in ("admin", "operator"):
+            can_cancel = True
+        elif current_user.role == "client" and order.canonical_status == "presupuesto" and order.client_id == current_user_id:
+            can_cancel = True
+
     parts_map = {p.id: p for p in SparePartService.get_all_active().get("parts", [])}
     return render_template('/views/work_orders/detail.html',
                            order=order,
@@ -147,6 +155,7 @@ def detail(order_id):
                            advance_description=adv[1],
                            can_edit=can_edit,
                            can_revert=can_revert,
+                           can_cancel=can_cancel,
                            can_register_work=can_register_work,
                            current_user=current_user,
                            STATUS_LABELS=WorkOrderModel.STATUS_LABELS)
@@ -278,6 +287,41 @@ def revert(order_id):
     user_name = _user_full_name(user_id, current_user.email)
     result = WorkOrderService.revert_status(order_id, current_user.role, user_id,
                                             user_name=user_name, reason=reason)
+    flash(result["message"], 'success' if result["success"] else 'danger')
+    return redirect(url_for('work_orders.detail', order_id=order_id))
+
+
+@work_order_bp.route('/<order_id>/cancel', methods=['POST'])
+@login_required
+def cancel(order_id):
+    user_id = session.get("user_id")
+    current_user = UserRepository.find_by_id(user_id)
+    if not current_user:
+        flash('Sesión inválida', 'danger')
+        return redirect(url_for('work_orders.detail', order_id=order_id))
+    reason = request.form.get('reason', '').strip()
+    user_name = _user_full_name(user_id, current_user.email)
+    result = WorkOrderService.cancel_order(order_id, current_user.role, user_id,
+                                           user_name=user_name, reason=reason)
+    flash(result["message"], 'success' if result["success"] else 'danger')
+    return redirect(url_for('work_orders.detail', order_id=order_id))
+
+
+@work_order_bp.route('/<order_id>/delete-photo', methods=['POST'])
+@login_required
+def delete_photo(order_id):
+    user_id = session.get("user_id")
+    current_user = UserRepository.find_by_id(user_id)
+    if not current_user:
+        flash('Sesión inválida', 'danger')
+        return redirect(url_for('work_orders.detail', order_id=order_id))
+    photo_type = request.form.get('photo_type', '')
+    photo_path = request.form.get('photo_path', '')
+    result = WorkOrderService.delete_photo(
+        order_id, photo_type, photo_path,
+        current_user.role, user_id,
+        static_folder=current_app.static_folder
+    )
     flash(result["message"], 'success' if result["success"] else 'danger')
     return redirect(url_for('work_orders.detail', order_id=order_id))
 

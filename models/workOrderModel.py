@@ -22,6 +22,7 @@ class WorkOrderModel:
         "en_reparacion":  "En Reparación",
         "pago_pendiente": "Pago Pendiente",
         "entregado":      "Entregado",
+        "cancelado":      "Cancelado",
         # backward compat
         "ingresado": "Recepción",  "revision":  "En Diagnóstico",
         "resultado": "Presupuesto Emitido", "finalizado": "Entregado",
@@ -93,6 +94,16 @@ class WorkOrderModel:
     @property
     def status_index(self):
         s = self.canonical_status
+        if s == "cancelado":
+            # Show timeline at the point of cancellation
+            for entry in reversed(self.status_history):
+                if entry.get("action") == "cancel":
+                    from_s = _LEGACY_MAP.get(entry.get("from_status", ""), entry.get("from_status", ""))
+                    try:
+                        return self.STATUS_FLOW.index(from_s)
+                    except ValueError:
+                        pass
+            return 0
         try:
             return self.STATUS_FLOW.index(s)
         except ValueError:
@@ -100,6 +111,8 @@ class WorkOrderModel:
 
     @property
     def next_status(self):
+        if self.canonical_status == "cancelado":
+            return None
         idx = self.status_index
         if idx < len(self.STATUS_FLOW) - 1:
             return self.STATUS_FLOW[idx + 1]
@@ -107,6 +120,8 @@ class WorkOrderModel:
 
     @property
     def prev_status(self):
+        if self.canonical_status == "cancelado":
+            return None
         idx = self.status_index
         if idx > 0:
             return self.STATUS_FLOW[idx - 1]
@@ -114,9 +129,11 @@ class WorkOrderModel:
 
     @property
     def is_closed(self):
-        return self.canonical_status == "entregado"
+        return self.canonical_status in ("entregado", "cancelado")
 
     def can_user_advance(self, user_role: str) -> bool:
+        if self.canonical_status == "cancelado":
+            return False
         canonical = self.canonical_status
         allowed = self.STATUS_TRANSITIONS.get(canonical, [])
         return user_role in allowed
@@ -125,7 +142,7 @@ class WorkOrderModel:
         if user_role not in ("admin", "operator"):
             return False
         canonical = self.canonical_status
-        return canonical not in ("recepcion", "entregado")
+        return canonical not in ("recepcion", "entregado", "cancelado")
 
     @classmethod
     def from_dict(cls, data: dict) -> 'WorkOrderModel':

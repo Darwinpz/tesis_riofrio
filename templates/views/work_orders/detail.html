@@ -9,6 +9,7 @@
 {% elif s == 'aprobado' %}<span class="badge bg-info text-dark">Aprobado</span>
 {% elif s == 'en_reparacion' %}<span class="badge badge-orange">En Reparación</span>
 {% elif s == 'pago_pendiente' %}<span class="badge badge-purple">Pago Pendiente</span>
+{% elif s == 'cancelado' %}<span class="badge bg-dark"><i class="bi bi-x-circle me-1"></i>Cancelado</span>
 {% else %}<span class="badge bg-success">Entregado</span>
 {% endif %}
 {% endmacro %}
@@ -96,7 +97,7 @@
 </div>
 
 <!-- Action card -->
-{% if can_advance or can_revert or can_register_work %}
+{% if can_advance or can_revert or can_register_work or can_cancel %}
 <div class="card border-0 shadow-sm mb-3"
      style="border-left: 4px solid var(--mc-accent) !important; border-radius: var(--mc-radius) !important;">
     <div class="card-body py-3">
@@ -110,12 +111,15 @@
                 <p class="text-muted small mb-0">Agrega repuestos, diagnóstico y evidencias del trabajo realizado.</p>
                 {% elif can_advance %}
                 {% if order.canonical_status == 'presupuesto' and current_user and current_user.role == 'client' %}
-                <h6 class="mb-1 fw-bold">Aprobar Presupuesto</h6>
-                <p class="text-muted small mb-0">Acepta el presupuesto para que el taller inicie la reparación.</p>
+                <h6 class="mb-1 fw-bold">Aprobar o Rechazar Presupuesto</h6>
+                <p class="text-muted small mb-0">Acepta el presupuesto para que el taller inicie la reparación, o recházalo si no estás de acuerdo.</p>
                 {% else %}
                 <h6 class="mb-1 fw-bold">{{ advance_label }}</h6>
                 <p class="text-muted small mb-0">{{ advance_description }}</p>
                 {% endif %}
+                {% elif can_cancel and not can_advance and not can_revert %}
+                <h6 class="mb-1 fw-bold text-danger">Cancelar Ingreso</h6>
+                <p class="text-muted small mb-0">Cancela este ingreso con una justificación. Esta acción no se puede deshacer.</p>
                 {% else %}
                 <h6 class="mb-1 fw-bold text-warning">Retroceder Estado</h6>
                 <p class="text-muted small mb-0">Regresa el ingreso al estado anterior con una justificación.</p>
@@ -146,6 +150,19 @@
                         data-bs-toggle="modal" data-bs-target="#revertModal">
                     <i class="bi bi-arrow-counterclockwise me-1"></i>Retroceder
                 </button>
+                {% endif %}
+                {% if can_cancel %}
+                {% if current_user and current_user.role == 'client' %}
+                <button type="button" class="btn btn-outline-danger btn-sm"
+                        data-bs-toggle="modal" data-bs-target="#rejectModal">
+                    <i class="bi bi-x-circle me-1"></i>No aprobar
+                </button>
+                {% else %}
+                <button type="button" class="btn btn-outline-danger btn-sm"
+                        data-bs-toggle="modal" data-bs-target="#cancelModal">
+                    <i class="bi bi-x-circle me-1"></i>Cancelar Ingreso
+                </button>
+                {% endif %}
                 {% endif %}
             </div>
         </div>
@@ -268,11 +285,24 @@
             <div class="card-body p-2">
                 <div class="row g-1">
                     {% for photo in order.vehicle_photos %}
-                    <div class="col-{{ '3' if order.vehicle_photos | length > 3 else '4' }}">
+                    <div class="col-{{ '3' if order.vehicle_photos | length > 3 else '4' }} position-relative">
                         <a href="/{{ photo }}" target="_blank">
                             <img src="/{{ photo }}" class="img-fluid rounded"
                                  style="height:58px;width:100%;object-fit:cover;" alt="">
                         </a>
+                        {% if current_user and current_user.role in ('admin', 'operator') %}
+                        <form method="POST" action="{{ url_for('work_orders.delete_photo', order_id=order.id) }}"
+                              class="d-inline" onsubmit="return confirm('¿Eliminar esta foto?')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="photo_type" value="vehicle">
+                            <input type="hidden" name="photo_path" value="{{ photo }}">
+                            <button type="submit" class="btn btn-danger btn-sm position-absolute top-0 end-0 p-0"
+                                    style="width:20px;height:20px;font-size:.65rem;line-height:1;border-radius:50%;margin:2px;"
+                                    title="Eliminar foto">
+                                <i class="bi bi-x"></i>
+                            </button>
+                        </form>
+                        {% endif %}
                     </div>
                     {% endfor %}
                 </div>
@@ -293,6 +323,8 @@
                     <div class="mt-1 flex-shrink-0">
                         {% if entry.action == 'advance' %}
                         <i class="bi bi-arrow-right-circle-fill text-success"></i>
+                        {% elif entry.action == 'cancel' %}
+                        <i class="bi bi-x-circle-fill text-danger"></i>
                         {% else %}
                         <i class="bi bi-arrow-left-circle-fill text-warning"></i>
                         {% endif %}
@@ -415,11 +447,24 @@
             <div class="card-body p-2">
                 <div class="row g-1">
                     {% for photo in order.work_photos %}
-                    <div class="col-3">
+                    <div class="col-3 position-relative">
                         <a href="/{{ photo }}" target="_blank">
                             <img src="/{{ photo }}" class="img-fluid rounded"
                                  style="height:80px;width:100%;object-fit:cover;" alt="">
                         </a>
+                        {% if current_user and (current_user.role in ('admin', 'operator') or (current_user.role == 'mechanic' and order.mechanic_id == current_user.id)) %}
+                        <form method="POST" action="{{ url_for('work_orders.delete_photo', order_id=order.id) }}"
+                              class="d-inline" onsubmit="return confirm('¿Eliminar esta foto?')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="photo_type" value="work">
+                            <input type="hidden" name="photo_path" value="{{ photo }}">
+                            <button type="submit" class="btn btn-danger btn-sm position-absolute top-0 end-0 p-0"
+                                    style="width:22px;height:22px;font-size:.7rem;line-height:1;border-radius:50%;margin:2px;"
+                                    title="Eliminar foto">
+                                <i class="bi bi-x"></i>
+                            </button>
+                        </form>
+                        {% endif %}
                     </div>
                     {% endfor %}
                 </div>
@@ -538,6 +583,82 @@
                     <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
                     <button type="submit" class="btn btn-success btn-sm px-4">
                         <i class="bi bi-hand-thumbs-up me-1"></i>Sí, apruebo el presupuesto
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Cancel modal (admin/operator) -->
+{% if can_cancel and current_user and current_user.role in ('admin', 'operator') %}
+<div class="modal fade" id="cancelModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('work_orders.cancel', order_id=order.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title fw-bold text-danger">
+                        <i class="bi bi-x-circle me-1"></i>Cancelar Ingreso
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-danger py-2 small">
+                        <i class="bi bi-exclamation-triangle me-1"></i>
+                        Esta acción es irreversible. El ingreso quedará marcado como Cancelado.
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small fw-medium">
+                            Motivo de cancelación <span class="text-danger">*</span>
+                        </label>
+                        <textarea name="reason" class="form-control" rows="3"
+                                  placeholder="Explica el motivo de la cancelación..." required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Volver</button>
+                    <button type="submit" class="btn btn-danger btn-sm px-4">
+                        <i class="bi bi-x-circle me-1"></i>Confirmar Cancelación
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Reject modal (client at presupuesto) -->
+{% if can_cancel and current_user and current_user.role == 'client' %}
+<div class="modal fade" id="rejectModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('work_orders.cancel', order_id=order.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title fw-bold text-danger">
+                        <i class="bi bi-x-circle me-1"></i>No Aprobar Presupuesto
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="small text-muted mb-3">
+                        Estás rechazando el presupuesto de <strong>${{ "%.2f" | format(order.total) }}</strong>.
+                        El taller recibirá una notificación y el ingreso quedará cancelado.
+                    </p>
+                    <div class="mb-2">
+                        <label class="form-label small fw-medium">
+                            Motivo del rechazo <span class="text-danger">*</span>
+                        </label>
+                        <textarea name="reason" class="form-control" rows="3"
+                                  placeholder="¿Por qué no apruebas el presupuesto?" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Volver</button>
+                    <button type="submit" class="btn btn-danger btn-sm px-4">
+                        <i class="bi bi-x-circle me-1"></i>No aprobar
                     </button>
                 </div>
             </form>

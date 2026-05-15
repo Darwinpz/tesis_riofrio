@@ -1,6 +1,6 @@
 from database.mongoDb import DatabaseConnection
 from models.stockMovementModel import StockMovementModel
-from typing import List
+from typing import List, Optional
 from bson import ObjectId
 from pymongo.errors import PyMongoError
 from datetime import datetime, timedelta
@@ -20,6 +20,15 @@ class StockMovementRepository:
             return str(result.inserted_id)
         except PyMongoError as e:
             print(f"Error al crear movimiento en la BD: {e}")
+            raise
+
+    @classmethod
+    def find_by_id(cls, movement_id: str) -> Optional[StockMovementModel]:
+        try:
+            data = cls._get_collection().find_one({"_id": ObjectId(movement_id)})
+            return StockMovementModel.from_dict(data) if data else None
+        except PyMongoError as e:
+            print(f"Error al obtener movimiento en la BD: {e}")
             raise
 
     @classmethod

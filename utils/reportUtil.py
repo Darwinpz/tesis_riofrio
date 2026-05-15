@@ -647,3 +647,150 @@ def generate_reception_receipt(order, client_name: str, mechanic_name: str = "")
 
     doc.build(story)
     return buffer.getvalue()
+
+
+def generate_exit_comprobante(movement, part_name: str, user_name: str) -> bytes:
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4,
+                            leftMargin=1.5*cm, rightMargin=1.5*cm,
+                            topMargin=1.5*cm, bottomMargin=2*cm)
+    styles = getSampleStyleSheet()
+    story = []
+
+    brand_style = ParagraphStyle('brand', parent=styles['Normal'],
+                                 fontName='Helvetica-Bold', fontSize=18,
+                                 textColor=colors.white, alignment=TA_LEFT)
+    title_style = ParagraphStyle('rtitle', parent=styles['Normal'],
+                                 fontName='Helvetica-Bold', fontSize=13,
+                                 textColor=colors.white, alignment=TA_RIGHT)
+    hdr_data = [[Paragraph("Mechita", brand_style),
+                 Paragraph("COMPROBANTE DE SALIDA DE STOCK", title_style)]]
+    hdr_tbl = Table(hdr_data, colWidths=['*', 8*cm])
+    hdr_tbl.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), HEADER_COLOR),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('LEFTPADDING', (0, 0), (0, -1), 12),
+        ('RIGHTPADDING', (-1, 0), (-1, -1), 12),
+        ('TOPPADDING', (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+    ]))
+    story.append(hdr_tbl)
+
+    date_str = (movement.created_at.strftime("%d/%m/%Y %H:%M")
+                if hasattr(movement.created_at, 'strftime') else str(movement.created_at))
+    sub_l = ParagraphStyle('sl', parent=styles['Normal'],
+                           fontName='Helvetica-Bold', fontSize=10,
+                           textColor=colors.white, alignment=TA_LEFT)
+    sub_r = ParagraphStyle('sr', parent=styles['Normal'],
+                           fontName='Helvetica', fontSize=9,
+                           textColor=colors.white, alignment=TA_RIGHT)
+    sub_data = [[Paragraph(f"Registrado por: {user_name}", sub_l),
+                 Paragraph(f"Fecha: {date_str}", sub_r)]]
+    sub_tbl = Table(sub_data, colWidths=['*', 5*cm])
+    sub_tbl.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), ACCENT_COLOR),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('LEFTPADDING', (0, 0), (0, -1), 12),
+        ('RIGHTPADDING', (-1, 0), (-1, -1), 12),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+    ]))
+    story.append(sub_tbl)
+    story.append(Spacer(1, 0.5*cm))
+
+    def section_header(text):
+        sh_style = ParagraphStyle('sh', parent=styles['Normal'],
+                                  fontName='Helvetica-Bold', fontSize=9,
+                                  textColor=colors.white, alignment=TA_LEFT)
+        sh_data = [[Paragraph(text.upper(), sh_style)]]
+        sh_tbl = Table(sh_data, colWidths=['*'])
+        sh_tbl.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), DARK_GRAY),
+            ('LEFTPADDING', (0, 0), (-1, -1), 8),
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ]))
+        return sh_tbl
+
+    lbl = ParagraphStyle('lbl', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=9)
+    val = ParagraphStyle('val', parent=styles['Normal'], fontName='Helvetica', fontSize=9)
+
+    story.append(section_header("Detalle del Movimiento"))
+    story.append(Spacer(1, 0.15*cm))
+    motive_labels = {
+        "orden_trabajo": "Orden de Trabajo", "venta_directa": "Venta Directa",
+        "ajuste": "Ajuste de Inventario", "danio": "Daño / Merma"
+    }
+    motive_display = motive_labels.get(movement.motive, movement.motive.replace("_", " ").title())
+    detail_data = [
+        [Paragraph("Repuesto:", lbl), Paragraph(part_name, val),
+         Paragraph("Cantidad:", lbl), Paragraph(str(movement.quantity), val)],
+        [Paragraph("Motivo:", lbl), Paragraph(motive_display, val),
+         Paragraph("Fecha:", lbl), Paragraph(date_str, val)],
+    ]
+    if movement.note:
+        detail_data.append([Paragraph("Nota:", lbl), Paragraph(movement.note, val), "", ""])
+    d_tbl = Table(detail_data, colWidths=[2.8*cm, 6*cm, 2.8*cm, 5.7*cm])
+    d_tbl.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), LIGHT_GRAY),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#dee2e6")),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 5),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+        ('LEFTPADDING', (0, 0), (-1, -1), 6),
+    ]))
+    story.append(d_tbl)
+    story.append(Spacer(1, 0.4*cm))
+
+    story.append(section_header("Destinatario"))
+    story.append(Spacer(1, 0.15*cm))
+    recipient_type_labels = {"cliente": "Cliente", "proveedor": "Proveedor", "otro": "Otro"}
+    rec_type = recipient_type_labels.get(movement.recipient_type or "", movement.recipient_type or "—")
+    rec_data = [
+        [Paragraph("Nombre:", lbl), Paragraph(movement.recipient_name or "—", val),
+         Paragraph("Tipo:", lbl), Paragraph(rec_type, val)],
+    ]
+    r_tbl = Table(rec_data, colWidths=[2.8*cm, 6*cm, 2.8*cm, 5.7*cm])
+    r_tbl.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), LIGHT_GRAY),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#dee2e6")),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 5),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+        ('LEFTPADDING', (0, 0), (-1, -1), 6),
+    ]))
+    story.append(r_tbl)
+    story.append(Spacer(1, 0.5*cm))
+
+    story.append(HRFlowable(width="100%", thickness=1, color=DARK_GRAY))
+    story.append(Spacer(1, 1.5*cm))
+    sig_lbl = ParagraphStyle('sig', parent=styles['Normal'],
+                              fontName='Helvetica', fontSize=9, alignment=TA_CENTER)
+    sig_data = [
+        [Paragraph("_______________________________", sig_lbl),
+         Paragraph("_______________________________", sig_lbl)],
+        [Paragraph("Firma del Responsable de Entrega", sig_lbl),
+         Paragraph("Firma del Destinatario", sig_lbl)],
+    ]
+    sig_tbl = Table(sig_data, colWidths=['*', '*'])
+    sig_tbl.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+    ]))
+    story.append(sig_tbl)
+    story.append(Spacer(1, 0.6*cm))
+
+    footer_style = ParagraphStyle('ft', parent=styles['Normal'],
+                                  fontName='Helvetica', fontSize=7,
+                                  textColor=DARK_GRAY, alignment=TA_CENTER)
+    story.append(HRFlowable(width="100%", thickness=0.5, color=DARK_GRAY))
+    story.append(Spacer(1, 0.15*cm))
+    story.append(Paragraph(
+        f"Generado por Mechita · {datetime.now().strftime('%d/%m/%Y %H:%M')} · "
+        "Documento de salida de mercadería — conservar como evidencia.",
+        footer_style))
+
+    doc.build(story)
+    return buffer.getvalue()

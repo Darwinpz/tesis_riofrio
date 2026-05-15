@@ -56,15 +56,47 @@
                         <textarea name="note" class="form-control" rows="2"
                                   placeholder="Observaciones adicionales..."></textarea>
                     </div>
-                    <div class="mb-4">
-                        <label class="form-label">
-                            <i class="bi bi-paperclip me-1"></i>Factura / Comprobante
-                            <span class="text-muted small">(PDF, imagen)</span>
-                        </label>
-                        <input type="file" name="attachment" class="form-control"
-                               accept=".pdf,.png,.jpg,.jpeg,.gif,.webp">
+                    <div id="recipientSection" class="d-none">
+                        <hr class="my-3">
+                        <p class="text-muted small mb-2"><i class="bi bi-person-check me-1"></i>Destinatario de la mercadería</p>
+                        <div class="mb-2">
+                            <label class="form-label">Tipo de destinatario</label>
+                            <select name="recipient_type" id="recipientType" class="form-select">
+                                <option value="cliente">Cliente registrado</option>
+                                <option value="proveedor">Proveedor registrado</option>
+                                <option value="otro">Otro</option>
+                            </select>
+                        </div>
+                        <!-- Cliente dropdown -->
+                        <div id="recipientClientWrap" class="mb-2">
+                            <label class="form-label">Cliente</label>
+                            <div class="mc-ss-wrapper">
+                                <input type="text" class="form-control mc-ss-input" id="clientSearch"
+                                       placeholder="Buscar cliente..." autocomplete="off">
+                                <input type="hidden" id="clientSelectedName">
+                                <div class="mc-ss-dropdown" id="clientDrop"></div>
+                            </div>
+                        </div>
+                        <!-- Proveedor dropdown -->
+                        <div id="recipientSupplierWrap" class="mb-2 d-none">
+                            <label class="form-label">Proveedor</label>
+                            <div class="mc-ss-wrapper">
+                                <input type="text" class="form-control mc-ss-input" id="supplierSearch"
+                                       placeholder="Buscar proveedor..." autocomplete="off">
+                                <input type="hidden" id="supplierSelectedName">
+                                <div class="mc-ss-dropdown" id="supplierDrop"></div>
+                            </div>
+                        </div>
+                        <!-- Otro: texto libre -->
+                        <div id="recipientOtherWrap" class="mb-2 d-none">
+                            <label class="form-label">Nombre del destinatario</label>
+                            <input type="text" id="otherName" class="form-control"
+                                   placeholder="Nombre o razón social">
+                        </div>
+                        <!-- Hidden field for submission -->
+                        <input type="hidden" name="recipient_name" id="recipientNameHidden">
                     </div>
-                    <div class="d-flex gap-2">
+                    <div class="mt-3 d-flex gap-2">
                         <button type="submit" class="btn btn-danger flex-fill">
                             <i class="bi bi-check-lg me-1"></i>Registrar Salida
                         </button>
@@ -122,13 +154,72 @@ function checkQty() {
     document.getElementById('stockWarn').classList.toggle('d-none', qty <= currentStock || !currentStock);
 }
 
+// Recipient data from server
+const clientsData = [{% for c in clients %}{id:{{ c.id | tojson }},label:{{ c.full_name | tojson }}}{% if not loop.last %},{% endif %}{% endfor %}];
+const suppliersData = [{% for s in suppliers %}{id:{{ s.id | tojson }},label:{{ s.name | tojson }}}{% if not loop.last %},{% endif %}{% endfor %}];
+
+initMcSelect({
+    input: document.getElementById('clientSearch'),
+    hidden: document.getElementById('clientSelectedName'),
+    drop: document.getElementById('clientDrop'),
+    data: clientsData,
+    labelFn: d => d.label,
+    valueFn: d => d.label,
+    onSelect: d => { if (d) document.getElementById('recipientNameHidden').value = d.label; }
+});
+
+initMcSelect({
+    input: document.getElementById('supplierSearch'),
+    hidden: document.getElementById('supplierSelectedName'),
+    drop: document.getElementById('supplierDrop'),
+    data: suppliersData,
+    labelFn: d => d.label,
+    valueFn: d => d.label,
+    onSelect: d => { if (d) document.getElementById('recipientNameHidden').value = d.label; }
+});
+
+document.getElementById('otherName').addEventListener('input', function() {
+    document.getElementById('recipientNameHidden').value = this.value;
+});
+
+const recipientType = document.getElementById('recipientType');
+function toggleRecipientType() {
+    const val = recipientType.value;
+    document.getElementById('recipientClientWrap').classList.toggle('d-none', val !== 'cliente');
+    document.getElementById('recipientSupplierWrap').classList.toggle('d-none', val !== 'proveedor');
+    document.getElementById('recipientOtherWrap').classList.toggle('d-none', val !== 'otro');
+    // Clear hidden when switching
+    document.getElementById('recipientNameHidden').value = '';
+    document.getElementById('clientSearch').value = '';
+    document.getElementById('supplierSearch').value = '';
+    document.getElementById('otherName').value = '';
+}
+recipientType.addEventListener('change', toggleRecipientType);
+
+const motiveSelect = document.querySelector('select[name="motive"]');
+const recipientSection = document.getElementById('recipientSection');
+const MOTIVES_WITH_RECIPIENT = ['venta_directa', 'orden_trabajo'];
+function toggleRecipient() {
+    const show = MOTIVES_WITH_RECIPIENT.includes(motiveSelect.value);
+    recipientSection.classList.toggle('d-none', !show);
+}
+motiveSelect.addEventListener('change', toggleRecipient);
+toggleRecipient();
+
 document.getElementById('exitForm').addEventListener('submit', function(e) {
+    let valid = true;
     if (!document.getElementById('partId').value) {
         e.preventDefault();
         const inp = document.getElementById('partSearch');
         inp.classList.add('is-invalid');
         inp.focus();
+        valid = false;
     }
+    // Sync recipient_name from other input if visible
+    if (!recipientSection.classList.contains('d-none') && recipientType.value === 'otro') {
+        document.getElementById('recipientNameHidden').value = document.getElementById('otherName').value;
+    }
+    return valid;
 });
 document.getElementById('partSearch').addEventListener('input', function() {
     this.classList.remove('is-invalid');
