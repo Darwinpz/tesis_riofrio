@@ -2,6 +2,7 @@ import os
 from flask import render_template, request, redirect, url_for, Blueprint, flash, session, current_app
 from services.stockService import StockService
 from services.sparePartService import SparePartService
+from services.supplierService import SupplierService
 from utils.authDecorator import role_required
 
 stock_bp = Blueprint('stock', __name__, url_prefix='/stock')
@@ -50,9 +51,11 @@ def index():
 @role_required('admin', 'operator')
 def entry():
     parts = SparePartService.get_all_active().get("parts", [])
+    suppliers = SupplierService.get_all().get("suppliers", [])
     if request.method == 'GET':
         preselect = request.args.get('part_id', '')
-        return render_template('/views/stock/entry.html', parts=parts, preselect=preselect)
+        return render_template('/views/stock/entry.html', parts=parts, suppliers=suppliers,
+                               preselect=preselect)
 
     spare_part_id = request.form.get('spare_part_id', '').strip()
     try:
@@ -61,17 +64,20 @@ def entry():
         quantity = 0
     motive = request.form.get('motive', '').strip()
     note = request.form.get('note', '').strip()
+    supplier_id = request.form.get('supplier_id', '').strip() or None
     user_id = session.get("user_id")
     attachment_file = request.files.get('attachment')
 
     result = StockService.register_entry(spare_part_id, quantity, motive, note, user_id,
+                                         supplier_id=supplier_id,
                                          attachment_file=attachment_file,
                                          upload_folder=_upload_folder())
     if result["success"]:
         flash(result["message"], 'success')
         return redirect(url_for('stock.index'))
     flash(result["message"], 'danger')
-    return render_template('/views/stock/entry.html', parts=parts, preselect=spare_part_id)
+    return render_template('/views/stock/entry.html', parts=parts, suppliers=suppliers,
+                           preselect=spare_part_id)
 
 
 @stock_bp.route('/exit', methods=['GET', 'POST'])

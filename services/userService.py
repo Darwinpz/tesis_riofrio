@@ -212,6 +212,39 @@ class UserService:
             return {"success": False, "message": f"Error al crear el usuario: {e}"}
 
     @staticmethod
+    def update_user_by_admin(user_id: str, first_name: str, last_name: str,
+                              identification: str, phone: str, role: str,
+                              new_password: str = None) -> Dict:
+        valid_roles = ("admin", "operator", "mechanic", "client")
+        if not first_name or not first_name.strip():
+            return {"success": False, "message": "El nombre es obligatorio"}
+        if not last_name or not last_name.strip():
+            return {"success": False, "message": "El apellido es obligatorio"}
+        if role not in valid_roles:
+            return {"success": False, "message": "Rol inválido"}
+        if new_password and len(new_password) < 6:
+            return {"success": False, "message": "La nueva contraseña debe tener al menos 6 caracteres"}
+        try:
+            user = UserRepository.find_by_id(user_id)
+            if not user:
+                return {"success": False, "message": "Usuario no encontrado"}
+
+            PersonRepository.update_by_user_id(user_id, {
+                "first_name": first_name.strip(),
+                "last_name": last_name.strip(),
+                "identification": identification.strip() if identification else "",
+                "phone": phone.strip() if phone else None,
+            })
+            UserRepository.update_role(user_id, role)
+            if new_password:
+                UserRepository.update_by_id(user_id, {
+                    "password": generate_password_hash(new_password)
+                })
+            return {"success": True, "message": "Usuario actualizado exitosamente"}
+        except Exception as e:
+            return {"success": False, "message": f"Error al actualizar el usuario: {e}"}
+
+    @staticmethod
     def update_user_role(user_id: str, role: str) -> Dict:
         if role not in ("admin", "operator", "mechanic", "client"):
             return {"success": False, "message": "Rol inválido"}

@@ -1,129 +1,90 @@
 {% extends 'base.html' %}
-{% block title %}Editar Orden {{ order.number }}{% endblock %}
+{% block title %}Registrar Trabajo — Ingreso {{ order.number }}{% endblock %}
 {% block body %}
+
 <div class="mc-page-header mb-4">
     <div class="d-flex align-items-center gap-3">
         <a href="{{ url_for('work_orders.detail', order_id=order.id) }}" class="btn btn-outline-light btn-sm">
             <i class="bi bi-arrow-left"></i>
         </a>
-        <div class="mc-icon-box"><i class="bi bi-clipboard-check text-white fs-5"></i></div>
+        <div class="mc-icon-box"><i class="bi bi-wrench text-white fs-5"></i></div>
         <div>
-            <h4 class="mb-0 fw-bold">Editar Ingreso <code class="text-white">{{ order.number }}</code></h4>
-            <small>
-                Modifica los datos del ingreso
-            </small>
+            <h4 class="mb-0 fw-bold">Registrar Trabajo <code class="text-white">{{ order.number }}</code></h4>
+            <small>Agrega repuestos, diagnóstico y evidencias del trabajo realizado</small>
         </div>
     </div>
 </div>
 
-<form method="POST" action="{{ url_for('work_orders.edit', order_id=order.id) }}" id="orderForm"
+<!-- Vehicle summary (read-only) -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body py-2 px-4">
+        <div class="d-flex flex-wrap gap-4 align-items-center small text-muted">
+            <span><i class="bi bi-car-front me-1"></i>
+                <strong class="text-dark">{{ order.vehicle_brand }} {{ order.vehicle_model }}</strong>
+                {% if order.vehicle_year %}({{ order.vehicle_year }}){% endif %}
+            </span>
+            <span><i class="bi bi-tag me-1"></i>
+                <span class="badge bg-dark">{{ order.vehicle_plate }}</span>
+            </span>
+            <span><i class="bi bi-person me-1"></i>{{ order.client_name }}</span>
+            <span class="ms-auto">
+                {% set s = order.canonical_status %}
+                {% if s == 'diagnostico' %}<span class="badge bg-primary">En Diagnóstico</span>
+                {% elif s == 'en_reparacion' %}<span class="badge badge-orange">En Reparación</span>
+                {% endif %}
+            </span>
+        </div>
+    </div>
+</div>
+
+<form method="POST" action="{{ url_for('work_orders.mechanic_work', order_id=order.id) }}" id="workForm"
       enctype="multipart/form-data">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="parts_json" id="partsJson" value="{{ order.parts | tojson }}">
 
     <div class="row g-4">
+        <!-- Left: notes + photos -->
         <div class="col-lg-5">
             <div class="card shadow-sm border-0 mb-3">
-                <div class="card-header bg-dark text-white">Datos del Vehículo</div>
-                <div class="card-body">
-                    <div class="row g-3">
-                        <div class="col-6">
-                            <label class="form-label">Marca <span class="text-danger">*</span></label>
-                            <select name="vehicle_brand" id="brandSel" class="form-select" required>
-                                <option value="">Seleccionar marca...</option>
-                                {% for b in brands %}
-                                <option value="{{ b.name }}" data-id="{{ b.id }}"
-                                    {% if order.vehicle_brand == b.name %}selected{% endif %}>
-                                    {{ b.name }}
-                                </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label">Modelo <span class="text-danger">*</span></label>
-                            <select name="vehicle_model" id="modelSel" class="form-select" required>
-                                <option value="">Seleccionar modelo...</option>
-                                {% for vm in vehicle_models_list %}
-                                <option value="{{ vm.name }}" data-brand="{{ vm.brand_id or '' }}"
-                                    {% if order.vehicle_model == vm.name %}selected{% endif %}>
-                                    {{ vm.name }}
-                                </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label">Placa <span class="text-danger">*</span></label>
-                            <input type="text" name="vehicle_plate" class="form-control" required
-                                   value="{{ order.vehicle_plate }}" style="text-transform:uppercase;">
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label">Año</label>
-                            <input type="number" name="vehicle_year" class="form-control"
-                                   min="1960" max="2035" placeholder="Ej: 2020"
-                                   value="{{ order.vehicle_year or '' }}">
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card shadow-sm border-0 mb-3">
-                <div class="card-header bg-dark text-white">Cliente y Mecánico</div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        <label class="form-label">Cliente <span class="text-danger">*</span></label>
-                        <div class="mc-ss-wrapper">
-                            <input type="text" class="form-control mc-ss-input" id="clientSearch"
-                                   placeholder="Buscar por nombre o correo..." autocomplete="off">
-                            <input type="hidden" name="client_id" id="clientId" value="{{ order.client_id }}">
-                            <div class="mc-ss-dropdown" id="clientDrop"></div>
-                        </div>
-                    </div>
-                    <div>
-                        <label class="form-label">Mecánico asignado</label>
-                        <select name="mechanic_id" class="form-select">
-                            <option value="">Sin asignar</option>
-                            {% for m in mechanics %}
-                            <option value="{{ m.id }}" {{ 'selected' if m.id == order.mechanic_id }}>
-                                {{ m.full_name }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card shadow-sm border-0 mb-3">
                 <div class="card-header bg-dark text-white">
-                    <i class="bi bi-camera me-1"></i>Agregar Fotos
+                    <i class="bi bi-chat-text me-1"></i>Diagnóstico / Observaciones
                 </div>
                 <div class="card-body">
-                    {% if order.vehicle_photos %}
-                    <div class="row g-1 mb-2">
-                        {% for photo in order.vehicle_photos %}
-                        <div class="col-4">
-                            <img src="/{{ photo }}" class="img-fluid rounded border"
-                                 style="height:60px;width:100%;object-fit:cover;" alt="">
-                        </div>
-                        {% endfor %}
-                    </div>
-                    {% endif %}
-                    <input type="file" name="vehicle_photos" class="form-control"
-                           accept="image/*" multiple>
-                    <small class="text-muted">Las fotos nuevas se agregan a las existentes</small>
+                    <textarea name="notes" class="form-control" rows="5"
+                              placeholder="Describe el diagnóstico, trabajo realizado, observaciones...">{{ order.work_notes or '' }}</textarea>
                 </div>
             </div>
 
             <div class="card shadow-sm border-0">
-                <div class="card-header bg-dark text-white">Notas</div>
+                <div class="card-header bg-dark text-white">
+                    <i class="bi bi-camera me-1"></i>Evidencias fotográficas
+                </div>
                 <div class="card-body">
-                    <textarea name="notes" class="form-control" rows="3">{{ order.notes or '' }}</textarea>
+                    {% if order.work_photos %}
+                    <div class="row g-1 mb-3">
+                        {% for photo in order.work_photos %}
+                        <div class="col-4">
+                            <a href="/{{ photo }}" target="_blank">
+                                <img src="/{{ photo }}" class="img-fluid rounded border"
+                                     style="height:70px;width:100%;object-fit:cover;" alt="">
+                            </a>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    <input type="file" name="evidence_photos" class="form-control"
+                           accept="image/*" multiple>
+                    <div class="form-text">Las fotos nuevas se agregan a las existentes.</div>
                 </div>
             </div>
         </div>
 
+        <!-- Right: parts + labor -->
         <div class="col-lg-7">
             <div class="card shadow-sm border-0 mb-3">
-                <div class="card-header bg-dark text-white">Repuestos</div>
+                <div class="card-header bg-dark text-white">
+                    <i class="bi bi-tools me-1"></i>Repuestos utilizados
+                </div>
                 <div class="card-body">
                     <div class="row g-2 mb-3 align-items-end">
                         <div class="col-5">
@@ -141,7 +102,8 @@
                         </div>
                         <div class="col-3">
                             <label class="form-label small">P. Unit. ($)</label>
-                            <input type="number" id="partPrice" class="form-control form-control-sm" min="0" step="0.01">
+                            <input type="number" id="partPrice" class="form-control form-control-sm"
+                                   min="0" step="0.01" placeholder="0.00">
                         </div>
                         <div class="col-2">
                             <button type="button" class="btn btn-outline-dark btn-sm w-100" onclick="addPart()">
@@ -174,15 +136,15 @@
                 <div class="card-body">
                     <div class="row align-items-center g-3">
                         <div class="col-sm-6">
-                            <label class="form-label">Mano de Obra ($)</label>
+                            <label class="form-label fw-medium">Mano de Obra ($)</label>
                             <input type="number" name="labor_cost" id="laborCost" class="form-control"
                                    min="0" step="0.01" value="{{ '%.2f' | format(order.labor_cost) }}"
                                    oninput="updateTotal()">
                         </div>
                         <div class="col-sm-6 text-end">
-                            <p class="text-muted small mb-1">Subtotal: <span id="subtotalDisplay">$0.00</span></p>
-                            <p class="text-muted small mb-1">M. de obra: <span id="laborDisplay">$0.00</span></p>
-                            <h5 class="mb-0">TOTAL: <strong id="totalDisplay">$0.00</strong></h5>
+                            <p class="text-muted small mb-1">Subtotal repuestos: <span id="subtotalDisplay">$0.00</span></p>
+                            <p class="text-muted small mb-1">Mano de obra: <span id="laborDisplay">$0.00</span></p>
+                            <h5 class="mb-0 fw-bold">TOTAL: <strong id="totalDisplay">$0.00</strong></h5>
                         </div>
                     </div>
                 </div>
@@ -190,9 +152,9 @@
         </div>
     </div>
 
-    <div class="d-flex gap-2 mt-3">
+    <div class="d-flex gap-2 mt-4">
         <button type="submit" class="btn btn-dark px-5">
-            <i class="bi bi-save me-1"></i>Guardar Cambios
+            <i class="bi bi-save me-1"></i>Guardar Trabajo
         </button>
         <a href="{{ url_for('work_orders.detail', order_id=order.id) }}" class="btn btn-outline-secondary">Cancelar</a>
     </div>
@@ -201,49 +163,6 @@
 
 {% block extra_scripts %}
 <script>
-// --- Brand / Model filtering ---
-const brandSel = document.getElementById('brandSel');
-const modelSel = document.getElementById('modelSel');
-const allModelOptions = Array.from(modelSel.options).slice(1);
-const brandsMap = {};
-{% for b in brands %}brandsMap[{{ b.name | tojson }}] = {{ b.id | tojson }};{% endfor %}
-
-function applyBrandFilter() {
-    const brandId = brandsMap[brandSel.value] || '';
-    const current = modelSel.value;
-    while (modelSel.options.length > 1) modelSel.remove(1);
-    allModelOptions.forEach(opt => {
-        if (!brandId || opt.dataset.brand === brandId || opt.dataset.brand === '') {
-            modelSel.appendChild(opt.cloneNode(true));
-        }
-    });
-    modelSel.value = current;
-    if (!modelSel.value) modelSel.value = '';
-}
-brandSel.addEventListener('change', applyBrandFilter);
-applyBrandFilter();
-
-// --- Client searchable dropdown ---
-const clientsData = [{% for c in clients %}{id:{{ c.id | tojson }},label:{{ (c.full_name + ' — ' + c.email) | tojson }}}{% if not loop.last %},{% endif %}{% endfor %}];
-const clientIdHidden = document.getElementById('clientId');
-const clientSearchInput = document.getElementById('clientSearch');
-
-// Pre-populate current client
-(function() {
-    const cur = clientsData.find(c => c.id === clientIdHidden.value);
-    if (cur) clientSearchInput.value = cur.label;
-})();
-
-initMcSelect({
-    input: clientSearchInput,
-    hidden: clientIdHidden,
-    drop: document.getElementById('clientDrop'),
-    data: clientsData,
-    labelFn: d => d.label,
-    valueFn: d => d.id
-});
-
-// --- Parts logic ---
 const partsOptions = [{% for p in parts %}{id:{{ p.id | tojson }},code:{{ p.code | tojson }},name:{{ p.name | tojson }},price:{{ p.precio_venta }},stock:{{ p.stock_actual }}}{% if not loop.last %},{% endif %}{% endfor %}];
 let partsData = {{ order.parts | tojson }};
 
@@ -297,7 +216,7 @@ function renderParts() {
     document.getElementById('partsJson').value = JSON.stringify(partsData);
     const tbody = document.getElementById('partsBody');
     if (!partsData.length) {
-        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted small py-2">Sin repuestos</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted small py-2">Sin repuestos agregados</td></tr>';
         updateTotal(); return;
     }
     tbody.innerHTML = partsData.map((p, i) => `

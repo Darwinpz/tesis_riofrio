@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}Mis Órdenes de Trabajo{% endblock %}
+{% block title %}Mis Ingresos de Taller{% endblock %}
 {% block body %}
 <div class="mc-page-header">
     <div class="d-flex align-items-center gap-3">
@@ -8,7 +8,7 @@
         </div>
         <div>
             <h4 class="mb-0 fw-bold">{{ title }}</h4>
-            <small>Historial de tus órdenes de trabajo</small>
+            <small>Historial de tus ingresos de taller</small>
         </div>
     </div>
 </div>
@@ -35,14 +35,21 @@
                         <td class="small">{{ o.vehicle_brand }} {{ o.vehicle_model }}</td>
                         <td><span class="badge bg-dark">{{ o.vehicle_plate }}</span></td>
                         <td class="text-center">
-                            {% if o.status in ('ingresado', 'abierta') %}
-                                <span class="badge bg-primary">Ingresado</span>
-                            {% elif o.status in ('revision', 'en_proceso') %}
-                                <span class="badge bg-warning text-dark">En Revisión</span>
-                            {% elif o.status == 'resultado' %}
-                                <span class="badge bg-info text-dark">Resultado</span>
+                            {% set s = o.canonical_status %}
+                            {% if s in ('recepcion','ingresado','abierta') %}
+                                <span class="badge bg-secondary">Recepción</span>
+                            {% elif s in ('diagnostico','revision','en_proceso') %}
+                                <span class="badge bg-primary">En Diagnóstico</span>
+                            {% elif s in ('presupuesto','resultado') %}
+                                <span class="badge bg-warning text-dark">Presupuesto</span>
+                            {% elif s == 'aprobado' %}
+                                <span class="badge bg-info text-dark">Aprobado</span>
+                            {% elif s == 'en_reparacion' %}
+                                <span class="badge badge-orange">En Reparación</span>
+                            {% elif s == 'pago_pendiente' %}
+                                <span class="badge badge-purple">Pago Pendiente</span>
                             {% else %}
-                                <span class="badge bg-success">Finalizado</span>
+                                <span class="badge bg-success">Entregado</span>
                             {% endif %}
                         </td>
                         <td class="text-end fw-bold">${{ "%.2f" | format(o.total) }}</td>
@@ -60,7 +67,7 @@
                     <tr>
                         <td colspan="7" class="text-center text-muted py-5">
                             <i class="bi bi-clipboard fs-2 d-block mb-2"></i>
-                            No tienes órdenes de trabajo registradas
+                            No tienes ingresos registrados
                         </td>
                     </tr>
                     {% endfor %}

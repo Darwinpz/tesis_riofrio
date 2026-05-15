@@ -1,17 +1,19 @@
 from datetime import datetime
 
 class BrandModel:
-    def __init__(self, name, description=None, id=None):
+    def __init__(self, name, description=None, imagen=None, id=None):
         self.id = id
         self.name = name
         self.description = description
+        self.imagen = imagen
         self.created_at = datetime.now()
 
     @classmethod
     def from_dict(cls, data: dict) -> 'BrandModel':
         brand = cls(
             name=data["name"],
-            description=data.get("description")
+            description=data.get("description"),
+            imagen=data.get("imagen")
         )
         if "_id" in data:
             brand.id = str(data["_id"])
@@ -23,6 +25,7 @@ class BrandModel:
         return {
             "name": self.name,
             "description": self.description,
+            "imagen": self.imagen,
             "created_at": self.created_at
         }
 

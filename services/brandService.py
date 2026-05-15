@@ -24,32 +24,40 @@ class BrandService:
             return {"success": False, "message": f"Error al obtener la marca: {e}"}
 
     @staticmethod
-    def create(name: str, description: str) -> Dict:
+    def create(name: str, description: str, imagen: str = None) -> Dict:
         if not name or not name.strip():
             return {"success": False, "message": "El nombre es obligatorio"}
         name = name.strip()
         try:
             if BrandRepository.exist_by_name(name):
                 return {"success": False, "message": "Ya existe una marca con ese nombre"}
-            BrandRepository.create(BrandModel(name=name, description=description.strip() if description else None))
+            BrandRepository.create(BrandModel(
+                name=name,
+                description=description.strip() if description else None,
+                imagen=imagen
+            ))
             return {"success": True, "message": "Marca creada exitosamente"}
         except Exception as e:
             return {"success": False, "message": f"Error al crear la marca: {e}"}
 
     @staticmethod
-    def update(brand_id: str, name: str, description: str) -> Dict:
+    def update(brand_id: str, name: str, description: str, imagen: str = None) -> Dict:
         if not name or not name.strip():
             return {"success": False, "message": "El nombre es obligatorio"}
         name = name.strip()
         try:
-            if not BrandRepository.find_by_id(brand_id):
+            brand = BrandRepository.find_by_id(brand_id)
+            if not brand:
                 return {"success": False, "message": "Marca no encontrada"}
             if BrandRepository.exist_by_name(name, exclude_id=brand_id):
                 return {"success": False, "message": "Ya existe una marca con ese nombre"}
-            BrandRepository.update_by_id(brand_id, {
+            update_fields = {
                 "name": name,
                 "description": description.strip() if description else None
-            })
+            }
+            if imagen is not None:
+                update_fields["imagen"] = imagen
+            BrandRepository.update_by_id(brand_id, update_fields)
             return {"success": True, "message": "Marca actualizada exitosamente"}
         except Exception as e:
             return {"success": False, "message": f"Error al actualizar la marca: {e}"}

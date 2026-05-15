@@ -1,6 +1,22 @@
-from flask import render_template, request, redirect, url_for, Blueprint, flash
+import os
+from flask import render_template, request, redirect, url_for, Blueprint, flash, current_app
+from werkzeug.utils import secure_filename
 from services.brandService import BrandService
 from utils.authDecorator import role_required
+
+_BRAND_IMG_EXTS = {"png", "jpg", "jpeg", "gif", "webp", "svg"}
+
+def _save_brand_image(file, brand_name: str):
+    if not file or not file.filename:
+        return None
+    ext = file.filename.rsplit(".", 1)[-1].lower()
+    if ext not in _BRAND_IMG_EXTS:
+        return None
+    upload_dir = os.path.join(current_app.static_folder, "uploads", "brands")
+    os.makedirs(upload_dir, exist_ok=True)
+    filename = secure_filename(f"brand_{brand_name}.{ext}")
+    file.save(os.path.join(upload_dir, filename))
+    return f"uploads/brands/{filename}"
 
 brand_bp = Blueprint('brands', __name__, url_prefix='/brands')
 
@@ -17,7 +33,8 @@ def create():
         return render_template('/views/brands/form.html', action='create', brand=None)
     name = request.form.get('name', '').strip()
     description = request.form.get('description', '').strip()
-    result = BrandService.create(name, description)
+    imagen_path = _save_brand_image(request.files.get('imagen'), name)
+    result = BrandService.create(name, description, imagen_path)
     if result["success"]:
         flash(result["message"], 'success')
         return redirect(url_for('brands.index'))
@@ -36,7 +53,9 @@ def edit(brand_id):
         return render_template('/views/brands/form.html', action='edit', brand=result["brand"])
     name = request.form.get('name', '').strip()
     description = request.form.get('description', '').strip()
-    result = BrandService.update(brand_id, name, description)
+    imagen_file = request.files.get('imagen')
+    imagen_path = _save_brand_image(imagen_file, name) if imagen_file and imagen_file.filename else None
+    result = BrandService.update(brand_id, name, description, imagen_path)
     if result["success"]:
         flash(result["message"], 'success')
         return redirect(url_for('brands.index'))

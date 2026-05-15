@@ -5,7 +5,8 @@ class StockMovementModel:
     EXIT_MOTIVES = ["orden_trabajo", "venta_directa", "ajuste", "danio"]
 
     def __init__(self, spare_part_id, movement_type, quantity, motive,
-                 note=None, user_id=None, work_order_id=None, attachment_path=None, id=None):
+                 note=None, user_id=None, work_order_id=None, supplier_id=None,
+                 attachment_path=None, id=None):
         self.id = id
         self.spare_part_id = spare_part_id
         self.movement_type = movement_type  # "entrada" | "salida"
@@ -14,6 +15,7 @@ class StockMovementModel:
         self.note = note
         self.user_id = user_id
         self.work_order_id = work_order_id
+        self.supplier_id = supplier_id
         self.attachment_path = attachment_path
         self.created_at = datetime.now()
 
@@ -27,6 +29,7 @@ class StockMovementModel:
             note=data.get("note"),
             user_id=data.get("user_id"),
             work_order_id=data.get("work_order_id"),
+            supplier_id=data.get("supplier_id"),
             attachment_path=data.get("attachment_path")
         )
         if "_id" in data:
@@ -44,6 +47,7 @@ class StockMovementModel:
             "note": self.note,
             "user_id": self.user_id,
             "work_order_id": self.work_order_id,
+            "supplier_id": self.supplier_id,
             "attachment_path": self.attachment_path,
             "created_at": self.created_at
         }

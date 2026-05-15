@@ -18,20 +18,16 @@
         <div class="card shadow-sm border-0">
             <div class="card-body">
                 <form method="POST" action="{{ url_for('stock.entry') }}"
-                      enctype="multipart/form-data">
+                      enctype="multipart/form-data" id="entryForm">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-3">
                         <label class="form-label">Repuesto <span class="text-danger">*</span></label>
-                        <select name="spare_part_id" class="form-select" required id="partSelect">
-                            <option value="">Seleccionar repuesto...</option>
-                            {% for p in parts %}
-                            <option value="{{ p.id }}"
-                                    data-stock="{{ p.stock_actual }}"
-                                    {{ 'selected' if preselect == p.id }}>
-                                {{ p.code }} — {{ p.name }} (stock: {{ p.stock_actual }})
-                            </option>
-                            {% endfor %}
-                        </select>
+                        <div class="mc-ss-wrapper">
+                            <input type="text" class="form-control mc-ss-input" id="partSearch"
+                                   placeholder="Buscar por código o nombre..." autocomplete="off">
+                            <input type="hidden" name="spare_part_id" id="partId">
+                            <div class="mc-ss-dropdown" id="partDrop"></div>
+                        </div>
                     </div>
                     <div id="stockInfo" class="alert alert-info py-2 small d-none">
                         <i class="bi bi-info-circle me-1"></i>
@@ -44,11 +40,20 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Motivo <span class="text-danger">*</span></label>
-                        <select name="motive" class="form-select" required>
+                        <select name="motive" class="form-select" required id="motiveSel">
                             <option value="">Seleccionar motivo...</option>
                             <option value="compra">Compra a proveedor</option>
                             <option value="devolucion">Devolución</option>
                             <option value="ajuste">Ajuste de inventario</option>
+                        </select>
+                    </div>
+                    <div class="mb-3" id="supplierSection" style="display:none;">
+                        <label class="form-label">Proveedor</label>
+                        <select name="supplier_id" class="form-select" id="supplierSel">
+                            <option value="">Sin especificar</option>
+                            {% for s in suppliers %}
+                            <option value="{{ s.id }}">{{ s.name }}</option>
+                            {% endfor %}
                         </select>
                     </div>
                     <div class="mb-3">
@@ -78,18 +83,52 @@
 {% endblock %}
 {% block extra_scripts %}
 <script>
-document.getElementById('partSelect').addEventListener('change', function() {
-    const opt = this.options[this.selectedIndex];
-    const info = document.getElementById('stockInfo');
-    if (opt.value) {
-        document.getElementById('currentStock').textContent = opt.dataset.stock;
-        info.classList.remove('d-none');
-    } else {
-        info.classList.add('d-none');
+const partsData = [{% for p in parts %}{id:{{ p.id | tojson }},label:{{ (p.code + ' — ' + p.name) | tojson }},stock:{{ p.stock_actual }}}{% if not loop.last %},{% endif %}{% endfor %}];
+
+initMcSelect({
+    input: document.getElementById('partSearch'),
+    hidden: document.getElementById('partId'),
+    drop: document.getElementById('partDrop'),
+    data: partsData,
+    labelFn: d => `${d.label} (stock: ${d.stock})`,
+    valueFn: d => d.id,
+    onSelect: function(part) {
+        const info = document.getElementById('stockInfo');
+        if (part) {
+            document.getElementById('currentStock').textContent = part.stock;
+            info.classList.remove('d-none');
+        } else {
+            info.classList.add('d-none');
+        }
     }
 });
-// Pre-select trigger
-const sel = document.getElementById('partSelect');
-if (sel.value) sel.dispatchEvent(new Event('change'));
+
+{% if preselect %}
+(function() {
+    const pre = partsData.find(p => p.id === {{ preselect | tojson }});
+    if (pre) {
+        document.getElementById('partSearch').value = `${pre.label} (stock: ${pre.stock})`;
+        document.getElementById('partId').value = pre.id;
+        document.getElementById('currentStock').textContent = pre.stock;
+        document.getElementById('stockInfo').classList.remove('d-none');
+    }
+})();
+{% endif %}
+
+document.getElementById('motiveSel').addEventListener('change', function() {
+    document.getElementById('supplierSection').style.display = this.value === 'compra' ? '' : 'none';
+});
+
+document.getElementById('entryForm').addEventListener('submit', function(e) {
+    if (!document.getElementById('partId').value) {
+        e.preventDefault();
+        const inp = document.getElementById('partSearch');
+        inp.classList.add('is-invalid');
+        inp.focus();
+    }
+});
+document.getElementById('partSearch').addEventListener('input', function() {
+    this.classList.remove('is-invalid');
+});
 </script>
 {% endblock %}

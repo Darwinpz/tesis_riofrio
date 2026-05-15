@@ -13,21 +13,30 @@ def users():
 @admin_bp.route('/users/<user_id>/edit', methods=['GET', 'POST'])
 @role_required('admin')
 def edit_user(user_id):
-    current_admin_id = session.get("user_id")
-    if request.method == 'GET':
-        result = UserService.get_user_by_id(user_id)
-        if not result["success"]:
-            flash(result["message"], 'danger')
-            return redirect(url_for('admin.users'))
-        return render_template('/views/admin/user_edit.html', profile=result["user"])
-    else:
-        role = request.form.get('role', '').strip()
-        result = UserService.update_user_role(user_id, role)
-        if result["success"]:
-            flash(result["message"], 'success')
-        else:
-            flash(result["message"], 'danger')
+    result = UserService.get_user_by_id(user_id)
+    if not result["success"]:
+        flash(result["message"], 'danger')
         return redirect(url_for('admin.users'))
+
+    if request.method == 'GET':
+        return render_template('/views/admin/user_edit.html', profile=result["user"])
+
+    first_name = request.form.get('first_name', '').strip()
+    last_name = request.form.get('last_name', '').strip()
+    identification = request.form.get('identification', '').strip()
+    phone = request.form.get('phone', '').strip()
+    role = request.form.get('role', '').strip()
+    new_password = request.form.get('new_password', '').strip() or None
+
+    result = UserService.update_user_by_admin(
+        user_id, first_name, last_name, identification, phone, role, new_password
+    )
+    if result["success"]:
+        flash(result["message"], 'success')
+        return redirect(url_for('admin.users'))
+    flash(result["message"], 'danger')
+    profile = UserService.get_user_by_id(user_id).get("user", {})
+    return render_template('/views/admin/user_edit.html', profile=profile)
 
 @admin_bp.route('/users/create', methods=['GET', 'POST'])
 @role_required('admin')

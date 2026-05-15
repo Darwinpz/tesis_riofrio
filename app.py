@@ -15,8 +15,10 @@ from controllers.brandController import brand_bp
 from controllers.vehicleModelController import vehicle_model_bp
 from controllers.serviceController import service_bp
 from controllers.catalogController import catalog_bp
+from controllers.commonErrorController import common_error_bp
 from dotenv import load_dotenv
 from commands.adminCommands import seed_admin_command
+from commands.seedDataCommands import seed_data_command
 import os
 
 load_dotenv()
@@ -51,9 +53,11 @@ app.register_blueprint(brand_bp)
 app.register_blueprint(vehicle_model_bp)
 app.register_blueprint(service_bp)
 app.register_blueprint(catalog_bp)
+app.register_blueprint(common_error_bp)
 
 # -- Comandos CLI --
 app.cli.add_command(seed_admin_command)
+app.cli.add_command(seed_data_command)
 
 # -- Ejecución --
 if __name__ == '__main__':

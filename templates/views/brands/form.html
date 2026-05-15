@@ -3,24 +3,43 @@
 {% block body %}
 <div class="row justify-content-center">
     <div class="col-md-6 col-lg-5">
-        <div class="d-flex align-items-center mb-4 gap-2">
-            <a href="{{ url_for('brands.index') }}" class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-arrow-left"></i>
-            </a>
-            <h4 class="mb-0">{{ 'Nueva Marca' if action == 'create' else 'Editar Marca' }}</h4>
+        <div class="mc-page-header mb-4">
+            <div class="d-flex align-items-center gap-3">
+                <a href="{{ url_for('brands.index') }}" class="btn btn-outline-light btn-sm">
+                    <i class="bi bi-arrow-left"></i>
+                </a>
+                <div class="mc-icon-box"><i class="bi bi-bookmark text-white fs-5"></i></div>
+                <div>
+                    <h4 class="mb-0 fw-bold">{{ 'Nueva Marca' if action == 'create' else 'Editar Marca' }}</h4>
+                    <small>{{ 'Registra una nueva marca de vehículo' if action == 'create' else 'Actualiza los datos de la marca' }}</small>
+                </div>
+            </div>
         </div>
         <div class="card shadow-sm border-0">
             <div class="card-body">
-                <form method="POST"
+                <form method="POST" enctype="multipart/form-data"
                       action="{{ url_for('brands.create') if action == 'create' else url_for('brands.edit', brand_id=brand.id) }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-3">
-                        <label class="form-label">Nombre <span class="text-danger">*</span></label>
+                        <label class="form-label fw-medium">Nombre <span class="text-danger">*</span></label>
                         <input type="text" name="name" class="form-control" required
                                value="{{ brand.name if brand else '' }}" placeholder="Ej: Toyota">
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-medium">Logo de la marca</label>
+                        {% if action == 'edit' and brand and brand.imagen %}
+                        <div class="mb-2 d-flex align-items-center gap-3">
+                            <img src="/{{ brand.imagen }}" alt="Logo actual"
+                                 style="height:56px;width:auto;object-fit:contain;border:1px solid #dee2e6;border-radius:8px;padding:4px;background:#fff;">
+                            <small class="text-muted">Logo actual — sube uno nuevo para reemplazarlo</small>
+                        </div>
+                        {% endif %}
+                        <input type="file" name="imagen" class="form-control"
+                               accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml">
+                        <div class="form-text">PNG, JPG, SVG o WEBP. Recomendado: fondo transparente.</div>
+                    </div>
                     <div class="mb-4">
-                        <label class="form-label">Descripción</label>
+                        <label class="form-label fw-medium">Descripción</label>
                         <textarea name="description" class="form-control" rows="3"
                                   placeholder="Descripción opcional">{{ brand.description if brand and brand.description else '' }}</textarea>
                     </div>

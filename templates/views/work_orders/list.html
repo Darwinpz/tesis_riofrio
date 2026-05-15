@@ -1,35 +1,44 @@
 {% extends 'base.html' %}
-{% block title %}Órdenes de Trabajo{% endblock %}
+{% block title %}Ingresos de Taller{% endblock %}
 {% block body %}
 <div class="mc-page-header">
     <div class="d-flex justify-content-between align-items-center">
         <div class="d-flex align-items-center gap-3">
             <div class="mc-icon-box"><i class="bi bi-clipboard-check text-white fs-5"></i></div>
             <div>
-                <h4 class="mb-0 fw-bold">Órdenes de Trabajo</h4>
-                <small>Gestión y seguimiento de órdenes</small>
+                <h4 class="mb-0 fw-bold">Ingresos de Taller</h4>
+                <small>Gestión y seguimiento de ingresos vehiculares</small>
             </div>
         </div>
-        <a href="{{ url_for('work_orders.create') }}" class="btn btn-light btn-sm">
-            <i class="bi bi-plus-lg me-1"></i>Nueva Orden
-        </a>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('work_orders.report') }}?search={{ filter_search }}&status={{ filter_status }}"
+               class="btn btn-outline-light btn-sm" target="_blank" title="Imprimir reporte de ingresos">
+                <i class="bi bi-printer me-1"></i>Imprimir Reporte
+            </a>
+            <a href="{{ url_for('work_orders.create') }}" class="btn btn-light btn-sm">
+                <i class="bi bi-plus-lg me-1"></i>Nuevo Ingreso
+            </a>
+        </div>
     </div>
 </div>
 
 <!-- Filtros -->
 <div class="mc-filters">
 <form method="GET" class="row g-2">
-    <div class="col-sm-5">
-        <input type="text" name="search" class="form-control" placeholder="Buscar por N° orden o placa..."
+    <div class="col-sm-4">
+        <input type="text" name="search" class="form-control" placeholder="Buscar por N° o placa..."
                value="{{ filter_search }}">
     </div>
-    <div class="col-sm-3">
+    <div class="col-sm-4">
         <select name="status" class="form-select">
             <option value="">Todos los estados</option>
-            <option value="ingresado" {{ 'selected' if filter_status == 'ingresado' }}>Ingresado</option>
-            <option value="revision" {{ 'selected' if filter_status == 'revision' }}>En Revisión</option>
-            <option value="resultado" {{ 'selected' if filter_status == 'resultado' }}>Resultado del Chequeo</option>
-            <option value="finalizado" {{ 'selected' if filter_status == 'finalizado' }}>Finalizado</option>
+            <option value="recepcion"      {{ 'selected' if filter_status == 'recepcion' }}>Recepción</option>
+            <option value="diagnostico"    {{ 'selected' if filter_status == 'diagnostico' }}>En Diagnóstico</option>
+            <option value="presupuesto"    {{ 'selected' if filter_status == 'presupuesto' }}>Presupuesto</option>
+            <option value="aprobado"       {{ 'selected' if filter_status == 'aprobado' }}>Aprobado</option>
+            <option value="en_reparacion"  {{ 'selected' if filter_status == 'en_reparacion' }}>En Reparación</option>
+            <option value="pago_pendiente" {{ 'selected' if filter_status == 'pago_pendiente' }}>Pago Pendiente</option>
+            <option value="entregado"      {{ 'selected' if filter_status == 'entregado' }}>Entregado</option>
         </select>
     </div>
     <div class="col-sm-4 d-flex gap-2">
@@ -49,7 +58,7 @@
             <table class="table table-hover align-middle mb-0">
                 <thead class="table-dark">
                     <tr>
-                        <th>N° Orden</th>
+                        <th>N° Ingreso</th>
                         <th>Vehículo</th>
                         <th>Placa</th>
                         <th>Cliente</th>
@@ -61,20 +70,35 @@
                 </thead>
                 <tbody>
                     {% for o in orders %}
+                    {% set s = o.canonical_status %}
                     <tr>
                         <td><code class="text-dark fw-bold">{{ o.number }}</code></td>
-                        <td class="small">{{ o.vehicle_brand }} {{ o.vehicle_model }}</td>
+                        <td class="small">
+                            {% set b = brands_map.get(o.vehicle_brand) %}
+                            {% if b and b.imagen %}
+                            <img src="/{{ b.imagen }}" alt="{{ o.vehicle_brand }}"
+                                 style="height:22px;width:auto;max-width:36px;object-fit:contain;margin-right:5px;vertical-align:middle;">
+                            {% endif %}
+                            {{ o.vehicle_brand }} {{ o.vehicle_model }}
+                            {% if o.vehicle_year %}<span class="text-muted">({{ o.vehicle_year }})</span>{% endif %}
+                        </td>
                         <td><span class="badge bg-dark">{{ o.vehicle_plate }}</span></td>
                         <td class="text-muted small">{{ o.client_name }}</td>
                         <td class="text-center">
-                            {% if o.status in ('ingresado', 'abierta') %}
-                                <span class="badge bg-primary">Ingresado</span>
-                            {% elif o.status == 'revision' or o.status == 'en_proceso' %}
-                                <span class="badge bg-warning text-dark">En Revisión</span>
-                            {% elif o.status == 'resultado' %}
-                                <span class="badge bg-info text-dark">Resultado</span>
+                            {% if s in ('recepcion','ingresado','abierta') %}
+                                <span class="badge bg-secondary">Recepción</span>
+                            {% elif s in ('diagnostico','revision','en_proceso') %}
+                                <span class="badge bg-primary">En Diagnóstico</span>
+                            {% elif s in ('presupuesto','resultado') %}
+                                <span class="badge bg-warning text-dark">Presupuesto</span>
+                            {% elif s == 'aprobado' %}
+                                <span class="badge bg-info text-dark">Aprobado</span>
+                            {% elif s == 'en_reparacion' %}
+                                <span class="badge badge-orange">En Reparación</span>
+                            {% elif s == 'pago_pendiente' %}
+                                <span class="badge badge-purple">Pago Pendiente</span>
                             {% else %}
-                                <span class="badge bg-success">Finalizado</span>
+                                <span class="badge bg-success">Entregado</span>
                             {% endif %}
                         </td>
                         <td class="text-end fw-bold">${{ "%.2f" | format(o.total) }}</td>
@@ -86,7 +110,7 @@
                                class="btn btn-sm btn-outline-secondary me-1" title="Ver detalle">
                                 <i class="bi bi-eye"></i>
                             </a>
-                            {% if not o.is_closed %}
+                            {% if not o.is_closed and s != 'pago_pendiente' %}
                             <a href="{{ url_for('work_orders.edit', order_id=o.id) }}"
                                class="btn btn-sm btn-outline-primary" title="Editar">
                                 <i class="bi bi-pencil"></i>
@@ -96,7 +120,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="8" class="text-center text-muted py-4">No se encontraron órdenes de trabajo</td>
+                        <td colspan="8" class="text-center text-muted py-4">No se encontraron ingresos</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -105,7 +129,7 @@
     </div>
     {% if total_pages > 1 %}
     <div class="card-footer bg-white d-flex justify-content-between align-items-center">
-        <small class="text-muted">{{ total }} órdenes</small>
+        <small class="text-muted">{{ total }} ingresos</small>
         <nav>
             <ul class="pagination pagination-sm mb-0">
                 {% for p in range(1, total_pages + 1) %}

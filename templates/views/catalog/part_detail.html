@@ -1,0 +1,188 @@
+{% extends 'base.html' %}
+{% block title %}{{ part.name }}{% endblock %}
+{% block body %}
+<div class="mb-4">
+    <a href="{{ url_for('catalog.index') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i>Volver al Catálogo
+    </a>
+</div>
+
+<div class="row g-4">
+    <!-- Imagen + info básica -->
+    <div class="col-lg-5">
+        {% if part.imagen %}
+        <img src="/{{ part.imagen }}" class="img-fluid rounded shadow-sm mb-3 w-100"
+             style="max-height:320px;object-fit:cover;" alt="{{ part.name }}">
+        {% else %}
+        <div class="bg-light rounded d-flex align-items-center justify-content-center mb-3"
+             style="height:280px;">
+            <i class="bi bi-gear text-muted" style="font-size:5rem;opacity:.2;"></i>
+        </div>
+        {% endif %}
+
+        <div class="card shadow-sm border-0">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <span class="badge bg-dark fs-6">{{ part.code }}</span>
+                    {% if category %}
+                    <span class="badge bg-secondary">{{ category.name }}</span>
+                    {% endif %}
+                </div>
+                <h3 class="fw-bold mb-1">{{ part.name }}</h3>
+                {% if brand %}
+                <p class="text-muted mb-3">
+                    <i class="bi bi-bookmark me-1"></i>{{ brand.name }}
+                </p>
+                {% endif %}
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <span class="fs-2 fw-bold">${{ "%.2f" | format(part.precio_venta) }}</span>
+                    {% if part.stock_actual > 0 %}
+                    <span class="badge bg-success fs-6">
+                        <i class="bi bi-check-circle me-1"></i>Disponible
+                    </span>
+                    {% else %}
+                    <span class="badge bg-danger fs-6">Sin stock</span>
+                    {% endif %}
+                </div>
+                {% if stats.count > 0 %}
+                <div class="d-flex align-items-center gap-2">
+                    <div class="text-warning fs-5">
+                        {% for i in range(1, 6) %}
+                        <i class="bi {{ 'bi-star-fill' if i <= stats.avg|round(0,'floor')|int else ('bi-star-half' if i == (stats.avg|round(0,'ceil')|int) and stats.avg % 1 >= 0.5 else 'bi-star') }}"></i>
+                        {% endfor %}
+                    </div>
+                    <span class="fw-bold">{{ "%.1f" | format(stats.avg) }}</span>
+                    <span class="text-muted small">({{ stats.count }} reseña{{ 's' if stats.count != 1 }})</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Descripción + reseñas -->
+    <div class="col-lg-7">
+        {% if part.description %}
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-dark text-white">
+                <i class="bi bi-info-circle me-1"></i>Descripción
+            </div>
+            <div class="card-body">
+                <p class="mb-0">{{ part.description }}</p>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Formulario de reseña -->
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-dark text-white">
+                <i class="bi bi-star me-1"></i>
+                {% if user_review %}Editar mi reseña{% else %}Dejar una reseña{% endif %}
+            </div>
+            <div class="card-body">
+                {% if current_user %}
+                <form method="POST" action="{{ url_for('catalog.part_review', part_id=part.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="mb-3">
+                        <label class="form-label fw-medium">Calificación</label>
+                        <div class="mc-star-rating" id="starRating">
+                            {% for i in range(1, 6) %}
+                            <input type="radio" name="rating" id="star{{ i }}" value="{{ i }}"
+                                   class="d-none" {{ 'checked' if user_review and user_review.rating == i }}>
+                            <label for="star{{ i }}" class="mc-star"
+                                   style="font-size:1.8rem;cursor:pointer;color:#dee2e6;margin-right:4px;">
+                                <i class="bi bi-star-fill"></i>
+                            </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-medium">Comentario</label>
+                        <textarea name="comment" class="form-control" rows="3"
+                                  placeholder="Comparte tu experiencia con este repuesto...">{{ user_review.comment if user_review and user_review.comment else '' }}</textarea>
+                    </div>
+                    <button type="submit" class="btn btn-dark">
+                        <i class="bi bi-send me-1"></i>{{ 'Actualizar reseña' if user_review else 'Publicar reseña' }}
+                    </button>
+                </form>
+                {% else %}
+                <div class="text-center text-muted py-3">
+                    <i class="bi bi-lock fs-3 d-block mb-2 opacity-25"></i>
+                    <a href="{{ url_for('users.login') }}" class="btn btn-outline-dark btn-sm">
+                        Iniciar sesión para dejar una reseña
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Listado de reseñas -->
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-chat-left-text me-1"></i>Reseñas</span>
+                {% if stats.count > 0 %}
+                <span class="badge bg-light text-dark">{{ stats.count }}</span>
+                {% endif %}
+            </div>
+            <div class="card-body p-0">
+                {% if reviews %}
+                <ul class="list-group list-group-flush">
+                    {% for r in reviews %}
+                    <li class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <strong class="small">{{ r.user_name }}</strong>
+                                <div class="text-warning">
+                                    {% for i in range(1, 6) %}
+                                    <i class="bi {{ 'bi-star-fill' if i <= r.rating else 'bi-star' }}"
+                                       style="font-size:.85rem;"></i>
+                                    {% endfor %}
+                                </div>
+                                {% if r.comment %}
+                                <p class="mb-0 mt-1 small">{{ r.comment }}</p>
+                                {% endif %}
+                            </div>
+                            <small class="text-muted text-nowrap ms-3">
+                                {{ r.created_at.strftime('%d/%m/%Y') if r.created_at else '' }}
+                            </small>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="bi bi-chat-left fs-3 d-block mb-2 opacity-25"></i>
+                    <small>Aún no hay reseñas. ¡Sé el primero!</small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Star rating interaction
+const labels = document.querySelectorAll('.mc-star');
+const inputs = document.querySelectorAll('input[name="rating"]');
+
+function updateStars(value) {
+    labels.forEach((lbl, idx) => {
+        lbl.style.color = idx < value ? '#ffc107' : '#dee2e6';
+    });
+}
+
+// Init from checked value
+const checked = document.querySelector('input[name="rating"]:checked');
+if (checked) updateStars(parseInt(checked.value));
+
+labels.forEach((lbl, idx) => {
+    lbl.addEventListener('mouseenter', () => updateStars(idx + 1));
+    lbl.addEventListener('click', () => updateStars(idx + 1));
+});
+document.getElementById('starRating').addEventListener('mouseleave', () => {
+    const cur = document.querySelector('input[name="rating"]:checked');
+    updateStars(cur ? parseInt(cur.value) : 0);
+});
+</script>
+{% endblock %}

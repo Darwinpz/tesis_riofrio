@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Nuevo' if action == 'create' else 'Editar' }} Error Común{% endblock %}
+{% block body %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="mc-page-header mb-4">
+            <div class="d-flex align-items-center gap-3">
+                <a href="{{ url_for('common_errors.index') }}" class="btn btn-outline-light btn-sm">
+                    <i class="bi bi-arrow-left"></i>
+                </a>
+                <div class="mc-icon-box"><i class="bi bi-exclamation-triangle text-white fs-5"></i></div>
+                <div>
+                    <h4 class="mb-0 fw-bold">{{ 'Nuevo Error Común' if action == 'create' else 'Editar Error Común' }}</h4>
+                    <small>Registra fallas frecuentes por marca, modelo y año</small>
+                </div>
+            </div>
+        </div>
+        <div class="card shadow-sm border-0">
+            <div class="card-body">
+                <form method="POST"
+                      action="{{ url_for('common_errors.create') if action == 'create' else url_for('common_errors.edit', error_id=error.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Marca</label>
+                            <select name="brand_id" class="form-select" id="brandSel">
+                                <option value="">Todas las marcas</option>
+                                {% for b in brands %}
+                                <option value="{{ b.id }}"
+                                    {% if error and (error.brand_id if error.brand_id is defined else error.get('brand_id','')) == b.id %}selected{% endif %}>
+                                    {{ b.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Modelo</label>
+                            <select name="vehicle_model_id" class="form-select" id="modelSel">
+                                <option value="">Todos los modelos</option>
+                                {% for vm in vehicle_models %}
+                                <option value="{{ vm.id }}" data-brand="{{ vm.brand_id or '' }}"
+                                    {% if error and (error.vehicle_model_id if error.vehicle_model_id is defined else error.get('vehicle_model_id','')) == vm.id %}selected{% endif %}>
+                                    {{ vm.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Año desde</label>
+                            <input type="number" name="year_from" class="form-control"
+                                   min="1960" max="2035" placeholder="Ej: 2015"
+                                   value="{{ error.year_from if error and error.year_from is defined else (error.get('year_from','') if error else '') }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Año hasta</label>
+                            <input type="number" name="year_to" class="form-control"
+                                   min="1960" max="2035" placeholder="Dejar vacío = presente"
+                                   value="{{ error.year_to if error and error.year_to is defined else (error.get('year_to','') if error else '') }}">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Título / Falla <span class="text-danger">*</span></label>
+                            <input type="text" name="title" class="form-control" required
+                                   placeholder="Ej: Falla en sensor de temperatura"
+                                   value="{{ error.title if error and error.title is defined else (error.get('title','') if error else '') }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Severidad</label>
+                            <select name="severity" class="form-select">
+                                {% set cur_sev = error.severity if error and error.severity is defined else (error.get('severity','media') if error else 'media') %}
+                                <option value="baja" {{ 'selected' if cur_sev == 'baja' }}>Baja</option>
+                                <option value="media" {{ 'selected' if cur_sev == 'media' }}>Media</option>
+                                <option value="alta" {{ 'selected' if cur_sev == 'alta' }}>Alta</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Descripción detallada</label>
+                            <textarea name="description" class="form-control" rows="4"
+                                      placeholder="Síntomas, causas frecuentes, solución recomendada...">{{ error.description if error and error.description is defined else (error.get('description','') if error else '') }}</textarea>
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2 mt-4">
+                        <button type="submit" class="btn btn-dark flex-fill">
+                            <i class="bi bi-save me-1"></i>Guardar
+                        </button>
+                        <a href="{{ url_for('common_errors.index') }}" class="btn btn-outline-secondary flex-fill">Cancelar</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_scripts %}
+<script>
+// Filter models by brand
+const brandSel = document.getElementById('brandSel');
+const modelSel = document.getElementById('modelSel');
+const allModelOpts = Array.from(modelSel.options).slice(1);
+const brandsMap = {};
+{% for b in brands %}brandsMap[{{ b.id | tojson }}] = {{ b.id | tojson }};{% endfor %}
+
+brandSel.addEventListener('change', function() {
+    const bId = this.value;
+    const cur = modelSel.value;
+    while (modelSel.options.length > 1) modelSel.remove(1);
+    allModelOpts.forEach(opt => {
+        if (!bId || opt.dataset.brand === bId || opt.dataset.brand === '') {
+            modelSel.appendChild(opt.cloneNode(true));
+        }
+    });
+    modelSel.value = cur;
+    if (!modelSel.value) modelSel.value = '';
+});
+</script>
+{% endblock %}

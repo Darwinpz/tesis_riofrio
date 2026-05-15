@@ -43,7 +43,8 @@ class StockService:
 
     @staticmethod
     def register_entry(spare_part_id: str, quantity: int, motive: str, note: str,
-                       user_id: str, attachment_file=None, upload_folder: str = None) -> Dict:
+                       user_id: str, supplier_id: str = None,
+                       attachment_file=None, upload_folder: str = None) -> Dict:
         if not spare_part_id:
             return {"success": False, "message": "Debe seleccionar un repuesto"}
         if quantity <= 0:
@@ -65,6 +66,7 @@ class StockService:
                 motive=motive,
                 note=note.strip() if note else None,
                 user_id=user_id,
+                supplier_id=supplier_id or None,
                 attachment_path=attachment_path
             )
             StockMovementRepository.create(movement)

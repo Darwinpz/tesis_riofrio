@@ -124,6 +124,67 @@
         ::-webkit-scrollbar-track { background: #f0f2f8; }
         ::-webkit-scrollbar-thumb { background: #c5cfe8; border-radius: 6px; }
         ::-webkit-scrollbar-thumb:hover { background: var(--mc-accent); }
+
+        /* ── Status badge extras ────────────────────────────── */
+        .badge-orange { background-color: #fd7e14 !important; color: #fff !important; }
+        .badge-purple { background-color: #6f42c1 !important; color: #fff !important; }
+
+        /* ── Status timeline ─────────────────────────────────── */
+        .mc-timeline { display: flex; overflow-x: auto; padding-bottom: .25rem; }
+        .mc-tl-step {
+            flex: 1; min-width: 68px; position: relative;
+            display: flex; flex-direction: column; align-items: center;
+        }
+        .mc-tl-step::before, .mc-tl-step::after {
+            content: ''; position: absolute;
+            top: 15px; width: calc(50% - 18px);
+            height: 2px; background: #dee2e6; z-index: 0;
+        }
+        .mc-tl-step::before { left: 0; }
+        .mc-tl-step::after  { right: 0; }
+        .mc-tl-step:first-child::before, .mc-tl-step:last-child::after { display: none; }
+        .mc-tl-step.done::before, .mc-tl-step.done::after,
+        .mc-tl-step.active::before { background: var(--mc-accent); }
+        .mc-tl-dot {
+            width: 32px; height: 32px; border-radius: 50%;
+            background: #e9ecef; border: 2px solid #dee2e6;
+            display: flex; align-items: center; justify-content: center;
+            font-size: .78rem; color: #adb5bd;
+            position: relative; z-index: 1; flex-shrink: 0;
+        }
+        .mc-tl-step.done .mc-tl-dot {
+            background: var(--mc-accent); border-color: var(--mc-accent); color: #fff;
+        }
+        .mc-tl-step.active .mc-tl-dot {
+            background: #fff; border-color: var(--mc-accent); color: var(--mc-accent);
+            box-shadow: 0 0 0 3px rgba(15,52,96,.18);
+        }
+        .mc-tl-lbl {
+            font-size: .65rem; font-weight: 500; color: #adb5bd;
+            margin-top: .35rem; text-align: center; white-space: nowrap;
+        }
+        .mc-tl-step.done .mc-tl-lbl { color: var(--mc-dark); font-weight: 600; }
+        .mc-tl-step.active .mc-tl-lbl { color: var(--mc-accent); font-weight: 700; }
+
+        /* ── Searchable select (mc-ss) ───────────────────────── */
+        .mc-ss-wrapper { position: relative; }
+        .mc-ss-dropdown {
+            position: absolute; left: 0; right: 0; z-index: 1055;
+            max-height: 240px; overflow-y: auto;
+            background: #fff; border: 1px solid #dee2e6;
+            border-radius: var(--mc-radius-sm);
+            box-shadow: 0 4px 18px rgba(15,52,96,.14);
+            display: none;
+        }
+        .mc-ss-dropdown.show { display: block; }
+        .mc-ss-item {
+            padding: .42rem .85rem; cursor: pointer;
+            font-size: .855rem; border-bottom: 1px solid #f0f2f8;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .mc-ss-item:last-child { border-bottom: 0; }
+        .mc-ss-item:hover { background-color: #eef1fb; color: var(--mc-dark); }
+        .mc-ss-empty { padding: .5rem .85rem; font-size: .855rem; color: #6c757d; font-style: italic; }
     </style>
 </head>
 <body>
@@ -151,6 +212,42 @@
     {% include '/views/footer.html' %}
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+    <script>
+    /* Searchable dropdown utility — used by work order forms */
+    function initMcSelect(cfg) {
+        const { input, hidden, drop, data, labelFn, valueFn, onSelect } = cfg;
+        function render(q) {
+            const lq = (q || '').toLowerCase();
+            const hits = lq ? data.filter(d => labelFn(d).toLowerCase().includes(lq)) : data;
+            if (!hits.length) {
+                drop.innerHTML = '<div class="mc-ss-empty">Sin resultados</div>';
+            } else {
+                drop.innerHTML = hits.slice(0, 100).map(d =>
+                    `<div class="mc-ss-item" data-val="${valueFn(d)}">${labelFn(d)}</div>`
+                ).join('');
+                drop.querySelectorAll('.mc-ss-item').forEach(el => {
+                    el.addEventListener('mousedown', function(e) {
+                        e.preventDefault();
+                        const val = this.dataset.val;
+                        const item = data.find(d => String(valueFn(d)) === val);
+                        hidden.value = val;
+                        input.value = this.textContent.trim();
+                        drop.classList.remove('show');
+                        if (onSelect) onSelect(item);
+                    });
+                });
+            }
+        }
+        input.addEventListener('input', function() {
+            hidden.value = '';
+            if (onSelect) onSelect(null);
+            render(this.value);
+            drop.classList.add('show');
+        });
+        input.addEventListener('focus', function() { render(this.value); drop.classList.add('show'); });
+        input.addEventListener('blur', function() { setTimeout(() => drop.classList.remove('show'), 160); });
+    }
+    </script>
     {% block extra_scripts %}{% endblock %}
 
 </body>

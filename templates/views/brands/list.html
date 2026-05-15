@@ -24,6 +24,7 @@
             <table class="table table-hover align-middle mb-0">
                 <thead class="table-dark">
                     <tr>
+                        <th style="width:64px;"></th>
                         <th>Nombre</th>
                         <th>Descripción</th>
                         {% if current_user.role == 'admin' %}
@@ -34,6 +35,14 @@
                 <tbody>
                     {% for brand in brands %}
                     <tr>
+                        <td class="text-center">
+                            {% if brand.imagen %}
+                            <img src="/{{ brand.imagen }}" alt="{{ brand.name }}"
+                                 style="height:36px;width:auto;max-width:52px;object-fit:contain;">
+                            {% else %}
+                            <span class="text-muted small">—</span>
+                            {% endif %}
+                        </td>
                         <td class="fw-medium">{{ brand.name }}</td>
                         <td class="text-muted">{{ brand.description or '—' }}</td>
                         {% if current_user.role == 'admin' %}
@@ -72,7 +81,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="{{ 3 if current_user.role == 'admin' else 2 }}"
+                        <td colspan="{{ 4 if current_user.role == 'admin' else 3 }}"
                             class="text-center text-muted py-4">No hay marcas registradas</td>
                     </tr>
                     {% endfor %}

@@ -164,8 +164,9 @@ def generate_work_order_pdf(order, client_name: str) -> bytes:
     styles = getSampleStyleSheet()
     story = []
 
-    story.append(_header_table(f"Orden de Trabajo #{order.number}",
-                               f"Estado: {order.status.upper()}"))
+    status_display = order.canonical_status.replace('_', ' ').title() if hasattr(order, 'canonical_status') else order.status.replace('_', ' ').title()
+    story.append(_header_table(f"Ingreso de Taller #{order.number}",
+                               f"Estado: {status_display}"))
     story.append(Spacer(1, 0.5*cm))
 
     label_style = ParagraphStyle('lbl', parent=styles['Normal'],
@@ -181,7 +182,7 @@ def generate_work_order_pdf(order, client_name: str) -> bytes:
         [Paragraph("Marca:", label_style), Paragraph(order.vehicle_brand, val_style),
          Paragraph("Modelo:", label_style), Paragraph(order.vehicle_model, val_style)],
         [Paragraph("Placa:", label_style), Paragraph(order.vehicle_plate, val_style),
-         Paragraph("Estado:", label_style), Paragraph(order.status.title(), val_style)],
+         Paragraph("Estado:", label_style), Paragraph(status_display, val_style)],
     ]
     info_tbl = Table(info_data, colWidths=[2.5*cm, 6*cm, 2.5*cm, 6*cm])
     info_tbl.setStyle(TableStyle([
@@ -263,6 +264,75 @@ def generate_work_order_pdf(order, client_name: str) -> bytes:
     return buffer.getvalue()
 
 
+def generate_work_orders_list_pdf(orders: list, clients_map: dict,
+                                  filter_search: str = "", filter_status: str = "") -> bytes:
+    buffer = io.BytesIO()
+    doc = _build_doc(buffer)
+    styles = getSampleStyleSheet()
+    story = []
+
+    subtitle = f"Total: {len(orders)} ingreso(s)"
+    if filter_search:
+        subtitle += f" · Búsqueda: {filter_search}"
+    if filter_status:
+        subtitle += f" · Estado: {filter_status.replace('_', ' ').title()}"
+
+    story.append(_header_table("Reporte de Ingresos de Taller", subtitle))
+    story.append(Spacer(1, 0.4*cm))
+
+    STATUS_LABELS = {
+        "recepcion": "Recepción", "diagnostico": "Diagnóstico",
+        "presupuesto": "Presupuesto", "aprobado": "Aprobado",
+        "en_reparacion": "En Reparación", "pago_pendiente": "Pago Pendiente",
+        "entregado": "Entregado",
+    }
+
+    label_style = ParagraphStyle('lbl', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=8)
+    val_style = ParagraphStyle('val', parent=styles['Normal'], fontName='Helvetica', fontSize=8)
+
+    headers = ["N° Ingreso", "Vehículo", "Placa", "Cliente", "Estado", "Total", "Fecha"]
+    rows = [headers]
+    for o in orders:
+        client_name = clients_map.get(o.client_id, "—")
+        vehicle = f"{o.vehicle_brand} {o.vehicle_model}"
+        if o.vehicle_year:
+            vehicle += f" ({o.vehicle_year})"
+        status = STATUS_LABELS.get(o.canonical_status, o.status.replace('_', ' ').title())
+        date = o.created_at.strftime("%d/%m/%Y") if hasattr(o.created_at, 'strftime') else str(o.created_at)
+        rows.append([
+            o.number,
+            vehicle,
+            o.vehicle_plate,
+            client_name,
+            status,
+            f"${o.total:.2f}",
+            date
+        ])
+
+    col_widths = [2.2*cm, 4.5*cm, 2*cm, 4*cm, 2.8*cm, 2*cm, 2.2*cm]
+    tbl = Table(rows, colWidths=col_widths, repeatRows=1)
+    tbl.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), ACCENT_COLOR),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 8),
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 1), (-1, -1), 7.5),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, LIGHT_GRAY]),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#dee2e6")),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('ALIGN', (1, 1), (1, -1), 'LEFT'),
+        ('ALIGN', (3, 1), (3, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+    ]))
+    story.append(tbl)
+
+    doc.build(story)
+    return buffer.getvalue()
+
+
 def generate_reception_receipt(order, client_name: str, mechanic_name: str = "") -> bytes:
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4,
@@ -300,7 +370,7 @@ def generate_reception_receipt(order, client_name: str, mechanic_name: str = "")
                            textColor=colors.white, alignment=TA_RIGHT)
     entry_date = (order.created_at.strftime("%d/%m/%Y %H:%M")
                   if hasattr(order.created_at, 'strftime') else str(order.created_at))
-    sub_data = [[Paragraph(f"Orden N° {order.number}", sub_l),
+    sub_data = [[Paragraph(f"Ingreso N° {order.number}", sub_l),
                  Paragraph(f"Fecha de ingreso: {entry_date}", sub_r)]]
     sub_tbl = Table(sub_data, colWidths=['*', 8*cm])
     sub_tbl.setStyle(TableStyle([

@@ -18,20 +18,16 @@
         <div class="card shadow-sm border-0">
             <div class="card-body">
                 <form method="POST" action="{{ url_for('stock.exit') }}"
-                      enctype="multipart/form-data">
+                      enctype="multipart/form-data" id="exitForm">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-3">
                         <label class="form-label">Repuesto <span class="text-danger">*</span></label>
-                        <select name="spare_part_id" class="form-select" required id="partSelect">
-                            <option value="">Seleccionar repuesto...</option>
-                            {% for p in parts %}
-                            <option value="{{ p.id }}"
-                                    data-stock="{{ p.stock_actual }}"
-                                    {{ 'selected' if preselect == p.id }}>
-                                {{ p.code }} — {{ p.name }} (stock: {{ p.stock_actual }})
-                            </option>
-                            {% endfor %}
-                        </select>
+                        <div class="mc-ss-wrapper">
+                            <input type="text" class="form-control mc-ss-input" id="partSearch"
+                                   placeholder="Buscar por código o nombre..." autocomplete="off">
+                            <input type="hidden" name="spare_part_id" id="partId">
+                            <div class="mc-ss-dropdown" id="partDrop"></div>
+                        </div>
                     </div>
                     <div id="stockInfo" class="alert alert-warning py-2 small d-none">
                         <i class="bi bi-info-circle me-1"></i>
@@ -83,25 +79,59 @@
 {% block extra_scripts %}
 <script>
 let currentStock = 0;
-document.getElementById('partSelect').addEventListener('change', function() {
-    const opt = this.options[this.selectedIndex];
-    const info = document.getElementById('stockInfo');
-    if (opt.value) {
-        currentStock = parseInt(opt.dataset.stock);
-        document.getElementById('currentStock').textContent = currentStock;
-        info.classList.remove('d-none');
-    } else {
-        info.classList.add('d-none');
-        currentStock = 0;
+const partsData = [{% for p in parts %}{id:{{ p.id | tojson }},label:{{ (p.code + ' — ' + p.name) | tojson }},stock:{{ p.stock_actual }}}{% if not loop.last %},{% endif %}{% endfor %}];
+
+initMcSelect({
+    input: document.getElementById('partSearch'),
+    hidden: document.getElementById('partId'),
+    drop: document.getElementById('partDrop'),
+    data: partsData,
+    labelFn: d => `${d.label} (stock: ${d.stock})`,
+    valueFn: d => d.id,
+    onSelect: function(part) {
+        const info = document.getElementById('stockInfo');
+        if (part) {
+            currentStock = part.stock;
+            document.getElementById('currentStock').textContent = currentStock;
+            info.classList.remove('d-none');
+        } else {
+            info.classList.add('d-none');
+            currentStock = 0;
+        }
+        checkQty();
     }
-    checkQty();
 });
+
+{% if preselect %}
+(function() {
+    const pre = partsData.find(p => p.id === {{ preselect | tojson }});
+    if (pre) {
+        document.getElementById('partSearch').value = `${pre.label} (stock: ${pre.stock})`;
+        document.getElementById('partId').value = pre.id;
+        currentStock = pre.stock;
+        document.getElementById('currentStock').textContent = currentStock;
+        document.getElementById('stockInfo').classList.remove('d-none');
+        checkQty();
+    }
+})();
+{% endif %}
+
 document.getElementById('qtyInput').addEventListener('input', checkQty);
 function checkQty() {
     const qty = parseInt(document.getElementById('qtyInput').value) || 0;
     document.getElementById('stockWarn').classList.toggle('d-none', qty <= currentStock || !currentStock);
 }
-const sel = document.getElementById('partSelect');
-if (sel.value) sel.dispatchEvent(new Event('change'));
+
+document.getElementById('exitForm').addEventListener('submit', function(e) {
+    if (!document.getElementById('partId').value) {
+        e.preventDefault();
+        const inp = document.getElementById('partSearch');
+        inp.classList.add('is-invalid');
+        inp.focus();
+    }
+});
+document.getElementById('partSearch').addEventListener('input', function() {
+    this.classList.remove('is-invalid');
+});
 </script>
 {% endblock %}

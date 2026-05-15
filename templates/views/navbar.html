@@ -62,13 +62,13 @@
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle {{ 'active' if request.path.startswith('/work-orders') }}"
                            href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="bi bi-clipboard-check me-1"></i>Órdenes
+                            <i class="bi bi-clipboard-check me-1"></i>Ingresos
                         </a>
                         <ul class="dropdown-menu dropdown-menu-dark">
                             <li><a class="dropdown-item" href="{{ url_for('work_orders.index') }}">
-                                <i class="bi bi-list-check me-1"></i>Ver Órdenes</a></li>
+                                <i class="bi bi-list-check me-1"></i>Ver Ingresos</a></li>
                             <li><a class="dropdown-item" href="{{ url_for('work_orders.create') }}">
-                                <i class="bi bi-plus-circle me-1"></i>Nueva Orden</a></li>
+                                <i class="bi bi-plus-circle me-1"></i>Nuevo Ingreso</a></li>
                         </ul>
                     </li>
                     {% endif %}
@@ -93,9 +93,9 @@
                         <a class="nav-link {{ 'active' if request.path.startswith('/work-orders/my') }}"
                            href="{{ url_for('work_orders.my_orders') }}">
                             {% if current_user.role == 'mechanic' %}
-                            <i class="bi bi-wrench me-1"></i>Mis Órdenes
+                            <i class="bi bi-wrench me-1"></i>Mis Ingresos
                             {% else %}
-                            <i class="bi bi-clipboard me-1"></i>Mis Órdenes
+                            <i class="bi bi-clipboard me-1"></i>Mis Ingresos
                             {% endif %}
                         </a>
                     </li>
@@ -110,6 +110,15 @@
                         <i class="bi bi-shop me-1"></i>Catálogo
                     </a>
                 </li>
+
+                {% if current_user %}
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if request.path.startswith('/common-errors') }}"
+                       href="{{ url_for('common_errors.index') }}">
+                        <i class="bi bi-exclamation-triangle me-1"></i>Errores Comunes
+                    </a>
+                </li>
+                {% endif %}
 
             </ul>
 

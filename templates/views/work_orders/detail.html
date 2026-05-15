@@ -1,9 +1,23 @@
 {% extends 'base.html' %}
-{% block title %}Orden {{ order.number }}{% endblock %}
+{% block title %}Ingreso {{ order.number }}{% endblock %}
+
+{% macro status_badge(status) %}
+{% set s = status %}
+{% if s in ('recepcion','ingresado','abierta') %}<span class="badge bg-secondary">Recepción</span>
+{% elif s in ('diagnostico','revision','en_proceso') %}<span class="badge bg-primary">En Diagnóstico</span>
+{% elif s in ('presupuesto','resultado') %}<span class="badge bg-warning text-dark">Presupuesto</span>
+{% elif s == 'aprobado' %}<span class="badge bg-info text-dark">Aprobado</span>
+{% elif s == 'en_reparacion' %}<span class="badge badge-orange">En Reparación</span>
+{% elif s == 'pago_pendiente' %}<span class="badge badge-purple">Pago Pendiente</span>
+{% else %}<span class="badge bg-success">Entregado</span>
+{% endif %}
+{% endmacro %}
+
 {% block body %}
-<div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-2">
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
     <div class="d-flex align-items-center gap-2">
-        {% if current_user.role in ('admin', 'operator') %}
+        {% if current_user and current_user.role in ('admin', 'operator') %}
         <a href="{{ url_for('work_orders.index') }}" class="btn btn-outline-secondary btn-sm">
             <i class="bi bi-arrow-left"></i>
         </a>
@@ -13,7 +27,7 @@
         </a>
         {% endif %}
         <div>
-            <h4 class="mb-0">Orden <code>{{ order.number }}</code></h4>
+            <h4 class="mb-0">Ingreso <code>{{ order.number }}</code></h4>
             <small class="text-muted">
                 {{ order.created_at.strftime('%d/%m/%Y %H:%M') if order.created_at else '' }}
             </small>
@@ -21,51 +35,189 @@
     </div>
     <div class="d-flex gap-2 flex-wrap">
         <a href="{{ url_for('work_orders.pdf', order_id=order.id) }}"
-           class="btn btn-outline-secondary btn-sm">
-            <i class="bi bi-file-pdf me-1"></i>PDF
+           class="btn btn-outline-secondary btn-sm" target="_blank">
+            <i class="bi bi-file-pdf me-1"></i>Ficha Técnica
         </a>
         <a href="{{ url_for('work_orders.receipt', order_id=order.id) }}"
            class="btn btn-outline-dark btn-sm" target="_blank">
             <i class="bi bi-receipt me-1"></i>Comprobante
         </a>
-        {% if current_user.role in ('admin', 'operator') and not order.is_closed %}
+        {% if can_edit %}
         <a href="{{ url_for('work_orders.edit', order_id=order.id) }}" class="btn btn-outline-primary btn-sm">
             <i class="bi bi-pencil me-1"></i>Editar
         </a>
-        <button type="button" class="btn btn-success btn-sm"
-                data-bs-toggle="modal" data-bs-target="#closeModal">
-            <i class="bi bi-check-circle me-1"></i>Finalizar Orden
-        </button>
         {% endif %}
     </div>
 </div>
 
-<!-- Estado -->
-<div class="mb-4">
-    {% if order.status in ('ingresado', 'abierta') %}
-        <span class="badge bg-primary fs-6">Ingresado</span>
-    {% elif order.status in ('revision', 'en_proceso') %}
-        <span class="badge bg-warning text-dark fs-6">En Revisión</span>
-    {% elif order.status == 'resultado' %}
-        <span class="badge bg-info text-dark fs-6">Resultado del Chequeo</span>
-    {% else %}
-        <span class="badge bg-success fs-6">Finalizado</span>
-    {% endif %}
+<!-- Status timeline -->
+<div class="card shadow-sm border-0 mb-3">
+    <div class="card-body py-3 px-4">
+        {% set tl_labels = {
+            'recepcion':      'Recepción',
+            'diagnostico':    'Diagnóstico',
+            'presupuesto':    'Presupuesto',
+            'aprobado':       'Aprobado',
+            'en_reparacion':  'Reparación',
+            'pago_pendiente': 'Pago',
+            'entregado':      'Entregado'
+        } %}
+        {% set tl_icons = {
+            'recepcion':      'bi-car-front',
+            'diagnostico':    'bi-search',
+            'presupuesto':    'bi-receipt',
+            'aprobado':       'bi-hand-thumbs-up',
+            'en_reparacion':  'bi-wrench',
+            'pago_pendiente': 'bi-credit-card',
+            'entregado':      'bi-check-circle-fill'
+        } %}
+        {% set current_idx = order.status_index %}
+        <div class="mc-timeline">
+            {% for step in ['recepcion','diagnostico','presupuesto','aprobado','en_reparacion','pago_pendiente','entregado'] %}
+            {% set idx = loop.index0 %}
+            {% set state = 'done' if idx < current_idx else ('active' if idx == current_idx else '') %}
+            <div class="mc-tl-step {{ state }}">
+                <div class="mc-tl-dot">
+                    {% if state == 'done' %}<i class="bi bi-check-lg"></i>
+                    {% else %}<i class="bi {{ tl_icons[step] }}"></i>{% endif %}
+                </div>
+                <div class="mc-tl-lbl">{{ tl_labels[step] }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
 </div>
 
+<!-- Action card -->
+{% if can_advance or can_revert or can_register_work %}
+<div class="card border-0 shadow-sm mb-4"
+     style="border-left: 4px solid var(--mc-accent) !important; border-radius: var(--mc-radius) !important;">
+    <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between gap-3 flex-wrap">
+            <div>
+                {% if can_register_work and can_advance %}
+                <h6 class="mb-1 fw-bold">Trabajo en curso</h6>
+                <p class="text-muted small mb-0">
+                    Actualiza el trabajo cuando necesites. Cuando estés listo, emite el presupuesto para continuar.
+                </p>
+                {% elif can_register_work %}
+                <h6 class="mb-1 fw-bold">Registrar trabajo en este ingreso</h6>
+                <p class="text-muted small mb-0">Agrega repuestos utilizados, diagnóstico y evidencias fotográficas.</p>
+                {% elif can_advance %}
+                {% if order.canonical_status == 'presupuesto' and current_user and current_user.role == 'client' %}
+                <h6 class="mb-1 fw-bold">Aprobar Presupuesto</h6>
+                <p class="text-muted small mb-0">Acepta el presupuesto para que el taller inicie la reparación.</p>
+                {% else %}
+                <h6 class="mb-1 fw-bold">{{ advance_label }}</h6>
+                <p class="text-muted small mb-0">{{ advance_description }}</p>
+                {% endif %}
+                {% else %}
+                <h6 class="mb-1 fw-bold text-warning">Retroceder Estado</h6>
+                <p class="text-muted small mb-0">Regresa el ingreso al estado anterior con una justificación.</p>
+                {% endif %}
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+                {% if can_register_work %}
+                <a href="{{ url_for('work_orders.mechanic_work', order_id=order.id) }}"
+                   class="btn btn-outline-success px-3">
+                    <i class="bi bi-wrench me-1"></i>Actualizar Trabajo
+                </a>
+                {% endif %}
+                {% if can_advance %}
+                {% if order.canonical_status == 'presupuesto' and current_user and current_user.role == 'client' %}
+                <button type="button" class="btn btn-success px-4"
+                        data-bs-toggle="modal" data-bs-target="#approveModal">
+                    <i class="bi bi-hand-thumbs-up me-1"></i>Aprobar Presupuesto
+                </button>
+                {% else %}
+                <button type="button" class="btn btn-dark px-4"
+                        data-bs-toggle="modal" data-bs-target="#advanceModal">
+                    <i class="bi bi-arrow-right-circle me-1"></i>{{ advance_label }}
+                </button>
+                {% endif %}
+                {% endif %}
+                {% if can_revert %}
+                <button type="button" class="btn btn-outline-warning btn-sm"
+                        data-bs-toggle="modal" data-bs-target="#revertModal">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i>Retroceder
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Payment proof: client upload at pago_pendiente -->
+{% if order.canonical_status == 'pago_pendiente' and current_user and current_user.role == 'client' %}
+<div class="card border-0 shadow-sm mb-4"
+     style="border-left: 4px solid #6f42c1 !important; border-radius: var(--mc-radius) !important;">
+    <div class="card-body">
+        {% if order.payment_proof_path %}
+        <div class="d-flex align-items-center gap-3">
+            <i class="bi bi-check-circle-fill text-success fs-4"></i>
+            <div>
+                <h6 class="mb-0 fw-bold">Comprobante enviado</h6>
+                <small class="text-muted">El taller revisará tu comprobante y confirmará la entrega.</small>
+            </div>
+            <a href="/{{ order.payment_proof_path }}" target="_blank" class="btn btn-sm btn-outline-secondary ms-auto">
+                <i class="bi bi-eye me-1"></i>Ver comprobante
+            </a>
+        </div>
+        {% else %}
+        <h6 class="mb-1 fw-bold">Subir Comprobante de Pago</h6>
+        <p class="text-muted small mb-3">Adjunta tu comprobante de transferencia o pago para que el taller pueda verificarlo.</p>
+        <form method="POST" action="{{ url_for('work_orders.upload_payment', order_id=order.id) }}"
+              enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="d-flex gap-2 align-items-center flex-wrap">
+                <input type="file" name="payment_proof" class="form-control form-control-sm" style="max-width:320px;"
+                       accept=".jpg,.jpeg,.png,.gif,.webp,.pdf" required>
+                <button type="submit" class="btn btn-sm btn-purple" style="background:#6f42c1;color:white;border:none;">
+                    <i class="bi bi-upload me-1"></i>Enviar comprobante
+                </button>
+            </div>
+        </form>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Payment proof: admin/operator view at pago_pendiente -->
+{% if order.canonical_status == 'pago_pendiente' and current_user and current_user.role in ('admin', 'operator') %}
+<div class="alert {% if order.payment_proof_path %}alert-success{% else %}alert-warning{% endif %} d-flex align-items-center gap-2 mb-4 small">
+    {% if order.payment_proof_path %}
+    <i class="bi bi-check-circle-fill"></i>
+    <span>El cliente subió un comprobante de pago.</span>
+    <a href="/{{ order.payment_proof_path }}" target="_blank" class="btn btn-sm btn-outline-success ms-2">
+        <i class="bi bi-eye me-1"></i>Ver comprobante
+    </a>
+    {% else %}
+    <i class="bi bi-exclamation-triangle-fill"></i>
+    <span>El cliente aún no ha subido el comprobante de pago.</span>
+    {% endif %}
+</div>
+{% endif %}
+
 <div class="row g-4">
-    <!-- Datos generales -->
+    <!-- Left: vehicle + client + notes + photos -->
     <div class="col-lg-5">
         <div class="card shadow-sm border-0 mb-3">
             <div class="card-header bg-dark text-white">Datos del Vehículo</div>
             <div class="card-body">
-                <dl class="row mb-0">
+                <dl class="row mb-0 small">
                     <dt class="col-5 text-muted">Marca</dt>
-                    <dd class="col-7">{{ order.vehicle_brand }}</dd>
+                    <dd class="col-7 fw-medium">{{ order.vehicle_brand }}</dd>
                     <dt class="col-5 text-muted">Modelo</dt>
                     <dd class="col-7">{{ order.vehicle_model }}</dd>
+                    {% if order.vehicle_year %}
+                    <dt class="col-5 text-muted">Año</dt>
+                    <dd class="col-7">{{ order.vehicle_year }}</dd>
+                    {% endif %}
                     <dt class="col-5 text-muted">Placa</dt>
                     <dd class="col-7"><span class="badge bg-dark">{{ order.vehicle_plate }}</span></dd>
+                    <dt class="col-5 text-muted">Estado</dt>
+                    <dd class="col-7">{{ status_badge(order.status) }}</dd>
                 </dl>
             </div>
         </div>
@@ -73,7 +225,7 @@
         <div class="card shadow-sm border-0 mb-3">
             <div class="card-header bg-dark text-white">Cliente y Mecánico</div>
             <div class="card-body">
-                <dl class="row mb-0">
+                <dl class="row mb-0 small">
                     <dt class="col-5 text-muted">Cliente</dt>
                     <dd class="col-7 fw-medium">{{ order.client_name }}</dd>
                     <dt class="col-5 text-muted">Mecánico</dt>
@@ -84,9 +236,44 @@
 
         {% if order.notes %}
         <div class="card shadow-sm border-0 mb-3">
-            <div class="card-header bg-dark text-white">Notas</div>
+            <div class="card-header bg-dark text-white">
+                <i class="bi bi-chat-text me-1"></i>Notas de Recepción
+            </div>
             <div class="card-body">
-                <p class="mb-0 text-muted">{{ order.notes }}</p>
+                <p class="mb-0 text-muted small">{{ order.notes }}</p>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if order.work_notes %}
+        <div class="card shadow-sm border-0 mb-3"
+             style="border-left: 3px solid #198754 !important;">
+            <div class="card-header bg-success bg-opacity-10 text-success-emphasis">
+                <i class="bi bi-wrench me-1"></i>Diagnóstico / Trabajo realizado
+            </div>
+            <div class="card-body">
+                <p class="mb-0 small" style="white-space:pre-wrap;">{{ order.work_notes }}</p>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if order.work_photos %}
+        <div class="card shadow-sm border-0 mb-3"
+             style="border-left: 3px solid #198754 !important;">
+            <div class="card-header bg-success bg-opacity-10 text-success-emphasis">
+                <i class="bi bi-camera me-1"></i>Evidencias del trabajo
+            </div>
+            <div class="card-body">
+                <div class="row g-2">
+                    {% for photo in order.work_photos %}
+                    <div class="col-6">
+                        <a href="/{{ photo }}" target="_blank">
+                            <img src="/{{ photo }}" class="img-fluid rounded border"
+                                 style="height:100px;width:100%;object-fit:cover;" alt="Evidencia">
+                        </a>
+                    </div>
+                    {% endfor %}
+                </div>
             </div>
         </div>
         {% endif %}
@@ -94,7 +281,7 @@
         {% if order.vehicle_photos %}
         <div class="card shadow-sm border-0">
             <div class="card-header bg-dark text-white">
-                <i class="bi bi-images me-1"></i>Fotos del Vehículo
+                <i class="bi bi-images me-1"></i>Fotos de Recepción
             </div>
             <div class="card-body">
                 <div class="row g-2">
@@ -102,8 +289,7 @@
                     <div class="col-6">
                         <a href="/{{ photo }}" target="_blank">
                             <img src="/{{ photo }}" class="img-fluid rounded border"
-                                 style="height:100px;width:100%;object-fit:cover;"
-                                 alt="Foto vehículo">
+                                 style="height:100px;width:100%;object-fit:cover;" alt="Foto vehículo">
                         </a>
                     </div>
                     {% endfor %}
@@ -113,10 +299,13 @@
         {% endif %}
     </div>
 
-    <!-- Repuestos y totales -->
+    <!-- Right: parts + totals -->
     <div class="col-lg-7">
+        {% if order.canonical_status != 'recepcion' or order.parts %}
         <div class="card shadow-sm border-0 mb-3">
-            <div class="card-header bg-dark text-white">Repuestos Utilizados</div>
+            <div class="card-header bg-dark text-white">
+                <i class="bi bi-tools me-1"></i>Repuestos y Diagnóstico
+            </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table table-sm align-middle mb-0">
@@ -138,7 +327,10 @@
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="4" class="text-center text-muted py-3">Sin repuestos</td>
+                                <td colspan="4" class="text-center text-muted py-3 small">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    Sin repuestos — se agregarán en la etapa de diagnóstico
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -152,14 +344,14 @@
                 <div class="d-flex justify-content-end">
                     <table class="table table-sm mb-0" style="max-width:280px;">
                         <tr>
-                            <td class="text-muted">Subtotal repuestos</td>
-                            <td class="text-end">${{ "%.2f" | format(order.total - order.labor_cost) }}</td>
+                            <td class="text-muted small">Subtotal repuestos</td>
+                            <td class="text-end small">${{ "%.2f" | format([order.total - order.labor_cost, 0] | max) }}</td>
                         </tr>
                         <tr>
-                            <td class="text-muted">Mano de obra</td>
-                            <td class="text-end">${{ "%.2f" | format(order.labor_cost) }}</td>
+                            <td class="text-muted small">Mano de obra</td>
+                            <td class="text-end small">${{ "%.2f" | format(order.labor_cost) }}</td>
                         </tr>
-                        <tr class="fw-bold fs-5">
+                        <tr class="fw-bold fs-5 border-top">
                             <td>TOTAL</td>
                             <td class="text-end">${{ "%.2f" | format(order.total) }}</td>
                         </tr>
@@ -167,40 +359,246 @@
                 </div>
             </div>
         </div>
+        {% else %}
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body d-flex flex-column align-items-center justify-content-center text-muted py-5">
+                <i class="bi bi-wrench fs-1 mb-3 opacity-25"></i>
+                <p class="mb-1 fw-medium">Diagnóstico pendiente</p>
+                <small>Los repuestos y costos se registrarán durante el diagnóstico.</small>
+                {% if can_advance and not can_register_work %}
+                <button type="button" class="btn btn-dark btn-sm mt-3"
+                        data-bs-toggle="modal" data-bs-target="#advanceModal">
+                    <i class="bi bi-arrow-right-circle me-1"></i>Enviar a Diagnóstico
+                </button>
+                {% elif can_register_work %}
+                <a href="{{ url_for('work_orders.mechanic_work', order_id=order.id) }}"
+                   class="btn btn-success btn-sm mt-3">
+                    <i class="bi bi-wrench me-1"></i>Registrar Trabajo
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 
-<!-- Modal finalizar orden -->
-{% if current_user.role in ('admin', 'operator') and not order.is_closed %}
-<div class="modal fade" id="closeModal" tabindex="-1">
+<!-- Status history (paginated) -->
+{% if order.status_history %}
+{% set history_rev = order.status_history | reverse | list %}
+{% set recent = history_rev[:5] %}
+{% set older = history_rev[5:] %}
+<div class="card shadow-sm border-0 mt-4">
+    <div class="card-header bg-dark text-white d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-clock-history me-2"></i>Historial de cambios</span>
+        <span class="badge bg-secondary">{{ order.status_history | length }}</span>
+    </div>
+    <div class="card-body p-0">
+        <ul class="list-group list-group-flush" id="historyRecent">
+            {% for entry in recent %}
+            <li class="list-group-item px-4 py-3">
+                <div class="d-flex align-items-start gap-3">
+                    <div class="mt-1">
+                        {% if entry.action == 'advance' %}
+                        <span class="badge bg-success rounded-pill"><i class="bi bi-arrow-right-short"></i></span>
+                        {% else %}
+                        <span class="badge bg-warning text-dark rounded-pill"><i class="bi bi-arrow-left-short"></i></span>
+                        {% endif %}
+                    </div>
+                    <div class="flex-grow-1">
+                        <div class="small fw-medium">
+                            <strong>{{ entry.user_name or 'Sistema' }}</strong>
+                            {% if entry.action == 'advance' %} avanzó {% else %} revirtió {% endif %}
+                            de <span class="badge bg-light text-dark border">{{ STATUS_LABELS.get(entry.from_status, entry.from_status) }}</span>
+                            a <span class="badge bg-dark">{{ STATUS_LABELS.get(entry.to_status, entry.to_status) }}</span>
+                        </div>
+                        {% if entry.reason %}
+                        <div class="text-muted small mt-1"><i class="bi bi-chat-quote me-1"></i>{{ entry.reason }}</div>
+                        {% endif %}
+                        <div class="text-muted" style="font-size:.75rem;">
+                            {{ entry.timestamp.strftime('%d/%m/%Y %H:%M') if entry.timestamp else '' }}
+                        </div>
+                    </div>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+        {% if older %}
+        <div class="collapse" id="historyOlder">
+            <ul class="list-group list-group-flush border-top">
+                {% for entry in older %}
+                <li class="list-group-item px-4 py-3">
+                    <div class="d-flex align-items-start gap-3">
+                        <div class="mt-1">
+                            {% if entry.action == 'advance' %}
+                            <span class="badge bg-success rounded-pill"><i class="bi bi-arrow-right-short"></i></span>
+                            {% else %}
+                            <span class="badge bg-warning text-dark rounded-pill"><i class="bi bi-arrow-left-short"></i></span>
+                            {% endif %}
+                        </div>
+                        <div class="flex-grow-1">
+                            <div class="small fw-medium">
+                                <strong>{{ entry.user_name or 'Sistema' }}</strong>
+                                {% if entry.action == 'advance' %} avanzó {% else %} revirtió {% endif %}
+                                de <span class="badge bg-light text-dark border">{{ STATUS_LABELS.get(entry.from_status, entry.from_status) }}</span>
+                                a <span class="badge bg-dark">{{ STATUS_LABELS.get(entry.to_status, entry.to_status) }}</span>
+                            </div>
+                            {% if entry.reason %}
+                            <div class="text-muted small mt-1"><i class="bi bi-chat-quote me-1"></i>{{ entry.reason }}</div>
+                            {% endif %}
+                            <div class="text-muted" style="font-size:.75rem;">
+                                {{ entry.timestamp.strftime('%d/%m/%Y %H:%M') if entry.timestamp else '' }}
+                            </div>
+                        </div>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        <div class="card-footer bg-white text-center border-0 py-2">
+            <button class="btn btn-sm btn-outline-secondary" type="button"
+                    data-bs-toggle="collapse" data-bs-target="#historyOlder"
+                    id="historyToggle"
+                    onclick="this.textContent = this.getAttribute('aria-expanded') === 'true' ? 'Ver {{ older | length }} registros anteriores' : 'Ocultar anteriores'">
+                Ver {{ older | length }} registros anteriores
+            </button>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<!-- ── MODALS ────────────────────────────────────────────── -->
+
+<!-- Advance modal (admin / operator / mechanic) -->
+{% if can_advance and not (order.canonical_status == 'presupuesto' and current_user and current_user.role == 'client') %}
+<div class="modal fade" id="advanceModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title"><i class="bi bi-check-circle text-success me-1"></i>Finalizar Orden de Trabajo</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p>Al finalizar la orden se descontará automáticamente el stock de los repuestos asignados:</p>
-                <ul class="small">
-                    {% for p in order.parts %}
-                    <li>{{ p.spare_part_name }} — {{ p.quantity }} unid.</li>
-                    {% else %}
-                    <li class="text-muted">Sin repuestos asignados</li>
-                    {% endfor %}
-                </ul>
-                <p class="text-warning small mb-0"><i class="bi bi-exclamation-triangle me-1"></i>Esta acción no se puede deshacer.</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <form method="POST" action="{{ url_for('work_orders.close', order_id=order.id) }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="btn btn-success">
-                        <i class="bi bi-check-lg me-1"></i>Finalizar y descontar stock
+            <form method="POST" action="{{ url_for('work_orders.advance', order_id=order.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title fw-bold">
+                        <i class="bi bi-arrow-right-circle me-1 text-dark"></i>{{ advance_label }}
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small">{{ advance_description }}</p>
+                    {% if order.canonical_status == 'pago_pendiente' %}
+                    <div class="alert alert-info py-2 small mb-3">
+                        <strong>Se descontará del stock:</strong>
+                        <ul class="mb-0 mt-1 ps-3">
+                            {% for p in order.parts %}
+                            <li>{{ p.spare_part_name }} — {{ p.quantity }} unid.</li>
+                            {% else %}
+                            <li>Sin repuestos asignados</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                    <div class="mb-2">
+                        <label class="form-label small fw-medium">
+                            {% if order.canonical_status == 'pago_pendiente' %}
+                            N° de comprobante / Referencia de pago <span class="text-danger">*</span>
+                            {% else %}
+                            Motivo / Observación <span class="text-muted small fw-normal">(opcional)</span>
+                            {% endif %}
+                        </label>
+                        <textarea name="reason" class="form-control" rows="3"
+                                  placeholder="{% if order.canonical_status == 'pago_pendiente' %}Ej: Transferencia #123456, efectivo recibido en caja...{% else %}Describe el motivo u observación del cambio (opcional)...{% endif %}"
+                                  {% if order.canonical_status == 'pago_pendiente' and current_user and current_user.role in ('admin', 'operator') %}required{% endif %}></textarea>
+                    </div>
+                    {% if order.canonical_status == 'pago_pendiente' %}
+                    <div class="alert alert-warning py-2 small mb-0">
+                        <i class="bi bi-exclamation-triangle me-1"></i>Esta acción no se puede deshacer.
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-dark btn-sm px-4">
+                        <i class="bi bi-check-lg me-1"></i>Confirmar
                     </button>
-                </form>
-            </div>
+                </div>
+            </form>
         </div>
     </div>
 </div>
 {% endif %}
+
+<!-- Client approval modal (presupuesto → aprobado) -->
+{% if can_advance and order.canonical_status == 'presupuesto' and current_user and current_user.role == 'client' %}
+<div class="modal fade" id="approveModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('work_orders.advance', order_id=order.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="reason" value="Cliente aprobó el presupuesto">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title fw-bold">
+                        <i class="bi bi-hand-thumbs-up text-success me-1"></i>Aprobar Presupuesto
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-2">Estás aprobando el presupuesto de este ingreso:</p>
+                    <div class="d-flex justify-content-between align-items-center border rounded p-3 bg-light">
+                        <span class="fw-medium">Total a cancelar</span>
+                        <span class="fs-5 fw-bold">${{ "%.2f" | format(order.total) }}</span>
+                    </div>
+                    <p class="text-muted small mt-3 mb-0">Al confirmar, el taller iniciará la reparación de tu vehículo.</p>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success btn-sm px-4">
+                        <i class="bi bi-hand-thumbs-up me-1"></i>Sí, apruebo el presupuesto
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Revert modal -->
+{% if can_revert %}
+<div class="modal fade" id="revertModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('work_orders.revert', order_id=order.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title fw-bold text-warning">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i>Retroceder Estado
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="small text-muted mb-3">
+                        El ingreso regresará de
+                        <strong>{{ STATUS_LABELS.get(order.canonical_status) }}</strong>
+                        a
+                        <strong>{{ STATUS_LABELS.get(order.prev_status) }}</strong>.
+                        Esto quedará registrado en el historial.
+                    </p>
+                    <div class="mb-2">
+                        <label class="form-label small fw-medium">
+                            Motivo del retroceso <span class="text-danger">*</span>
+                        </label>
+                        <textarea name="reason" class="form-control" rows="3"
+                                  placeholder="Explica por qué retrocedes el estado..." required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-warning btn-sm px-4">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i>Confirmar Retroceso
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 {% endblock %}
